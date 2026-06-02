@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Rollos WMS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+  --accent: #00e5a0; --accent2: #0078ff; --danger: #ff4d6d; --warn: #f59e0b;
+  --text: #e8eaf0; --muted: #8b92a5; --border: #2a2f45; --radius: 14px;
+}
+body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; min-height: 100vh; font-size: 16px; }
+
+/* HEADER */
+header { background: var(--surface); border-bottom: 2px solid var(--accent); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+header h1 { font-size: 17px; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
+#badge { background: var(--accent); color: #000; font-weight: bold; font-size: 14px; padding: 3px 12px; border-radius: 20px; display: none; }
+
+/* SECCIONES */
+.section { padding: 16px 18px; border-bottom: 1px solid var(--border); }
+.section-title { font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; }
+
+/* UPLOAD */
+#upload-area { border: 2px dashed var(--border); border-radius: var(--radius); padding: 22px; text-align: center; cursor: pointer; background: var(--surface); transition: border-color 0.2s; }
+#upload-area.loaded { border-color: var(--accent); }
+#upload-area p { color: var(--muted); font-size: 15px; }
+#upload-area.loaded p { color: var(--accent); }
+#file-input { display: none; }
+
+/* STEPS */
+.step-bar { display: flex; gap: 8px; margin-bottom: 14px; }
+.step { flex: 1; height: 4px; background: var(--border); border-radius: 2px; transition: background 0.3s; }
+.step.active { background: var(--warn); }
+.step.done { background: var(--accent); }
+
+/* INPUTS */
+.scan-row { display: flex; gap: 8px; align-items: stretch; }
+.scan-input { flex: 1; background: var(--surface2); border: 2px solid var(--border); border-radius: 10px; padding: 14px 14px; color: var(--text); font-family: 'Courier New', monospace; font-size: 16px; outline: none; transition: border-color 0.2s; }
+.scan-input:focus { border-color: var(--accent); }
+.scan-input::placeholder { color: var(--muted); font-size: 14px; }
+
+/* BOTONES */
+.btn { padding: 14px 18px; border: none; border-radius: 10px; font-family: 'Courier New', monospace; font-size: 15px; font-weight: bold; cursor: pointer; letter-spacing: 1px; transition: opacity 0.15s, transform 0.1s; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn:active { transform: scale(0.96); opacity: 0.8; }
+.btn-accent { background: var(--accent); color: #000; }
+.btn-blue { background: var(--accent2); color: #fff; }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-warn { background: var(--warn); color: #000; }
+.btn-full { width: 100%; margin-top: 10px; padding: 16px; font-size: 16px; }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-icon { width: 52px; min-width: 52px; font-size: 20px; padding: 0; }
+
+/* INFO CARD */
+.info-card { background: var(--surface); border: 2px solid var(--accent); border-radius: var(--radius); padding: 14px; margin-top: 12px; display: none; }
+.info-card.visible { display: block; }
+.info-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--border); gap: 8px; }
+.info-row:last-child { border-bottom: none; }
+.info-label { color: var(--muted); font-size: 12px; letter-spacing: 1px; white-space: nowrap; }
+.info-value { color: var(--accent); font-size: 15px; font-weight: bold; text-align: right; word-break: break-all; }
+
+/* DESTINO CARD */
+.dest-card { background: var(--surface); border: 2px solid var(--accent2); border-radius: var(--radius); padding: 14px; margin-top: 12px; display: none; text-align: center; }
+.dest-card.visible { display: block; }
+.dest-bin { font-size: 24px; color: var(--accent2); font-weight: bold; letter-spacing: 2px; padding: 6px 0; }
+
+/* LISTA */
+.mov-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.mov-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.mov-lote { color: var(--accent); font-size: 16px; font-weight: bold; }
+.mov-delete { background: none; border: none; color: var(--danger); font-size: 22px; cursor: pointer; padding: 0 4px; line-height: 1; }
+.mov-detail { font-size: 13px; color: var(--muted); line-height: 1.8; }
+.mov-arrow { color: var(--accent2); font-weight: bold; }
+.mov-desc { color: var(--text); font-size: 14px; margin-bottom: 2px; }
+.empty { text-align: center; padding: 28px; color: var(--muted); font-size: 14px; }
+
+/* ERROR */
+.error-msg { background: rgba(255,77,109,0.12); border: 1px solid var(--danger); border-radius: 8px; padding: 10px 14px; color: var(--danger); font-size: 14px; margin-top: 10px; display: none; }
+.error-msg.visible { display: block; }
+
+/* SUCCESS */
+.success-msg { background: rgba(0,229,160,0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 14px; color: var(--accent); font-size: 14px; margin-top: 10px; display: none; }
+.success-msg.visible { display: block; }
+
+/* CAMERA MODAL */
+#cam-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 200; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+#cam-modal.visible { display: flex; }
+#cam-video { width: 100%; max-width: 420px; border-radius: 12px; border: 2px solid var(--accent); }
+#cam-close { position: absolute; top: 20px; right: 20px; background: var(--danger); color: #fff; border: none; border-radius: 50%; width: 44px; height: 44px; font-size: 20px; cursor: pointer; }
+#cam-hint { color: var(--muted); font-size: 13px; text-align: center; padding: 0 20px; }
+
+/* EJECUTAR */
+#ejecutar-section { display: none; }
+#ejecutar-section.visible { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⬡ Rollos WMS</h1>
+  <span id="badge">0</span>
+</header>
+
+<!-- 1. INVENTARIO -->
+<div class="section">
+  <div class="section-title">1 · Inventario SAP</div>
+  <div id="upload-area" onclick="document.getElementById('file-input').click()">
+    <p id="upload-text">📂 Cargar Excel de /SCWM/MON (.xlsx)</p>
+  </div>
+  <input type="file" id="file-input" accept=".xlsx,.xls,.csv,.txt">
+  <div id="inv-status" style="font-size:12px; color:var(--muted); margin-top:8px; text-align:center;"></div>
+</div>
+
+<!-- 2. ESCANEAR ROLLO -->
+<div class="section">
+  <div class="section-title">2 · Escanear Rollo</div>
+  <div class="step-bar">
+    <div class="step" id="s1"></div>
+    <div class="step" id="s2"></div>
+    <div class="step" id="s3"></div>
+  </div>
+  <div class="scan-row">
+    <input class="scan-input" id="lote-input" placeholder="Lote SAP ID" autocomplete="off" autocorrect="off" spellcheck="false">
+    <button class="btn btn-blue btn-icon" onclick="abrirCamara('lote')" title="Cámara">📷</button>
+    <button class="btn btn-accent" style="min-width:60px;" onclick="buscarLote()">OK</button>
+  </div>
+  <div class="error-msg" id="lote-error"></div>
+  <div class="info-card" id="rollo-card">
+    <div class="info-row"><span class="info-label">LOTE</span><span class="info-value" id="r-lote">-</span></div>
+    <div class="info-row"><span class="info-label">PRODUCTO</span><span class="info-value" id="r-prod">-</span></div>
+    <div class="info-row"><span class="info-label">DESCRIPCIÓN</span><span class="info-value" id="r-desc">-</span></div>
+    <div class="info-row"><span class="info-label">BIN ACTUAL</span><span class="info-value" id="r-bin">-</span></div>
+    <div class="info-row"><span class="info-label">CANTIDAD</span><span class="info-value" id="r-ctd">-</span></div>
+  </div>
+</div>
+
+<!-- 3. DESTINO -->
+<div class="section" id="destino-section" style="display:none;">
+  <div class="section-title">3 · Escanear Bin Destino</div>
+  <div class="scan-row">
+    <input class="scan-input" id="dest-input" placeholder="Código estante destino" autocomplete="off" autocorrect="off" spellcheck="false">
+    <button class="btn btn-blue btn-icon" onclick="abrirCamara('dest')" title="Cámara">📷</button>
+    <button class="btn btn-accent" style="min-width:60px;" onclick="confirmarMovimiento()">OK</button>
+  </div>
+  <div class="error-msg" id="dest-error"></div>
+  <div class="success-msg" id="dest-ok">✓ Movimiento agregado</div>
+  <div class="dest-card" id="dest-card">
+    <div style="font-size:11px; color:var(--muted); letter-spacing:1px;">DESTINO</div>
+    <div class="dest-bin" id="dest-bin-val">-</div>
+  </div>
+</div>
+
+<!-- LISTA -->
+<div class="section">
+  <div class="section-title">Movimientos Pendientes</div>
+  <div id="lista-movimientos">
+    <div class="empty">Sin movimientos aún</div>
+  </div>
+</div>
+
+<!-- EJECUTAR -->
+<div class="section" id="ejecutar-section">
+  <button class="btn btn-warn btn-full" onclick="ejecutarMovimientos()">
+    ▶ EJECUTAR MOVIMIENTOS EN SAP
+  </button>
+  <div id="exec-status" style="font-size:13px; color:var(--muted); margin-top:10px; text-align:center;"></div>
+  <button class="btn btn-danger btn-full" style="margin-top:16px;" onclick="limpiarTodo()">🗑 Limpiar Todo</button>
+</div>
+
+<!-- CAMERA MODAL -->
+<div id="cam-modal">
+  <button id="cam-close" onclick="cerrarCamara()">✕</button>
+  <video id="cam-video" autoplay playsinline muted></video>
+  <canvas id="cam-canvas" style="display:none;"></canvas>
+  <p id="cam-hint">Apunta la cámara al código QR o de barras.<br>Se detectará automáticamente.</p>
+</div>
+
+<script>
+let inventario = [], movimientos = [], rolloActual = null;
+let camStream = null, camTarget = null, scanInterval = null;
+
+// ─── ARCHIVO ──────────────────────────────────────────────────────────────────
+document.getElementById('file-input').addEventListener('change', function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  if (file.name.match(/\.xlsx?$/i)) {
+    reader.onload = ev => parsearXLSX(ev.target.result, file.name);
+    reader.readAsArrayBuffer(file);
+  } else {
+    reader.onload = ev => parsearCSV(ev.target.result, file.name);
+    reader.readAsText(file, 'UTF-8');
+  }
+});
+
+function parsearXLSX(buffer, filename) {
+  try {
+    const wb = XLSX.read(buffer, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    cargarRegistros(data, filename);
+  } catch(e) { alert('Error al leer Excel: ' + e.message); }
+}
+
+function parsearCSV(text, filename) {
+  const sep = text.includes('\t') ? '\t' : (text.includes(';') ? ';' : ',');
+  const lineas = text.trim().split('\n');
+  if (lineas.length < 2) return;
+  const headers = lineas[0].split(sep).map(h => h.trim().replace(/"/g,''));
+  const data = [];
+  for (let i = 1; i < lineas.length; i++) {
+    const cols = lineas[i].split(sep).map(c => c.trim().replace(/"/g,''));
+    const obj = {}; headers.forEach((h, idx) => obj[h] = cols[idx] || ''); data.push(obj);
+  }
+  cargarRegistros(data, filename);
+}
+
+function cargarRegistros(data, filename) {
+  inventario = [];
+  const sample = data[0] ? Object.keys(data[0]) : [];
+  const col = opts => sample.find(k => opts.some(o => k.toLowerCase().includes(o))) || '';
+  const cUbic = col(['ubicaci','bin','location']);
+  const cCtd  = col(['ctd','cantidad','qty','quantity']);
+  const cUm   = col(['unidad','um','uom','unit']);
+  const cProd = col(['producto','product','material']);
+  const cDesc = col(['descripci','description','desc']);
+  const cLote = col(['lote','lot','batch']);
+
+  for (const row of data) {
+    const lote = String(row[cLote] || '').trim();
+    if (!lote) continue;
+    inventario.push({ lote, producto: String(row[cProd]||'').trim(), descripcion: String(row[cDesc]||'').trim(), bin: String(row[cUbic]||'').trim(), cantidad: String(row[cCtd]||'').trim(), unidad: String(row[cUm]||'M').trim() });
+  }
+  document.getElementById('upload-area').classList.add('loaded');
+  document.getElementById('upload-text').textContent = `✓ ${inventario.length} registros cargados`;
+  document.getElementById('inv-status').textContent = filename;
+  actualizarSteps();
+}
+
+// ─── BUSCAR LOTE ──────────────────────────────────────────────────────────────
+document.getElementById('lote-input').addEventListener('keypress', e => { if(e.key==='Enter') buscarLote(); });
+
+function buscarLote() {
+  const val = document.getElementById('lote-input').value.trim();
+  const err = document.getElementById('lote-error');
+  err.classList.remove('visible'); rolloActual = null;
+  if (!val) return;
+  if (!inventario.length) { mostrarError(err, 'Primero carga el inventario'); return; }
+
+  const found = inventario.find(r => r.lote === val || r.lote.includes(val) || val.includes(r.lote));
+  if (!found) { mostrarError(err, `Lote "${val}" no encontrado`); document.getElementById('rollo-card').classList.remove('visible'); document.getElementById('destino-section').style.display='none'; return; }
+
+  rolloActual = found;
+  document.getElementById('r-lote').textContent = found.lote;
+  document.getElementById('r-prod').textContent = found.producto;
+  document.getElementById('r-desc').textContent = found.descripcion;
+  document.getElementById('r-bin').textContent  = found.bin;
+  document.getElementById('r-ctd').textContent  = found.cantidad + ' ' + found.unidad;
+  document.getElementById('rollo-card').classList.add('visible');
+  document.getElementById('destino-section').style.display = 'block';
+  document.getElementById('dest-input').value = '';
+  document.getElementById('dest-card').classList.remove('visible');
+  document.getElementById('dest-ok').classList.remove('visible');
+  document.getElementById('dest-error').classList.remove('visible');
+  document.getElementById('dest-input').focus();
+  actualizarSteps();
+  window.scrollTo({ top: document.getElementById('destino-section').offsetTop - 10, behavior: 'smooth' });
+}
+
+// ─── CONFIRMAR ────────────────────────────────────────────────────────────────
+document.getElementById('dest-input').addEventListener('keypress', e => { if(e.key==='Enter') confirmarMovimiento(); });
+
+function confirmarMovimiento() {
+  const dest = document.getElementById('dest-input').value.trim();
+  const err  = document.getElementById('dest-error');
+  err.classList.remove('visible');
+  if (!dest) return;
+  if (!rolloActual) { mostrarError(err, 'Primero escanea un rollo'); return; }
+  if (dest === rolloActual.bin) { mostrarError(err, 'Destino igual al origen'); return; }
+
+  document.getElementById('dest-bin-val').textContent = dest;
+  document.getElementById('dest-card').classList.add('visible');
+  document.getElementById('dest-ok').classList.add('visible');
+
+  movimientos.push({ ...rolloActual, binOrigen: rolloActual.bin, binDestino: dest });
+  renderLista(); actualizarBadge();
+  document.getElementById('ejecutar-section').classList.add('visible');
+
+  setTimeout(() => {
+    document.getElementById('lote-input').value = '';
+    document.getElementById('dest-input').value = '';
+    document.getElementById('rollo-card').classList.remove('visible');
+    document.getElementById('dest-card').classList.remove('visible');
+    document.getElementById('dest-ok').classList.remove('visible');
+    document.getElementById('destino-section').style.display = 'none';
+    rolloActual = null;
+    document.getElementById('lote-input').focus();
+    actualizarSteps();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 1200);
+}
+
+// ─── LISTA ────────────────────────────────────────────────────────────────────
+function renderLista() {
+  const cont = document.getElementById('lista-movimientos');
+  if (!movimientos.length) { cont.innerHTML = '<div class="empty">Sin movimientos aún</div>'; return; }
+  cont.innerHTML = movimientos.map((m, i) => `
+    <div class="mov-item">
+      <div class="mov-header">
+        <span class="mov-lote">${m.lote}</span>
+        <button class="mov-delete" onclick="eliminarMov(${i})">×</button>
+      </div>
+      <div class="mov-desc">${m.descripcion}</div>
+      <div class="mov-detail">
+        <span style="color:var(--text)">${m.binOrigen}</span>
+        <span class="mov-arrow"> → </span>
+        <span style="color:var(--accent2)">${m.binDestino}</span>
+        &nbsp;|&nbsp;${m.cantidad} ${m.unidad}
+      </div>
+    </div>
+  `).join('');
+}
+
+function eliminarMov(i) {
+  movimientos.splice(i, 1); renderLista(); actualizarBadge();
+  if (!movimientos.length) document.getElementById('ejecutar-section').classList.remove('visible');
+}
+
+// ─── EJECUTAR ─────────────────────────────────────────────────────────────────
+function ejecutarMovimientos() {
+  if (!movimientos.length) return;
+  // Genera y descarga CSV para el script Python
+  const csv = generarCSV();
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `movimientos_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  document.getElementById('exec-status').textContent = `✓ ${movimientos.length} movimientos exportados. El script Python procesará el archivo.`;
+}
+
+function generarCSV() {
+  const h = 'Lote;Producto;Descripcion;BinOrigen;BinDestino;Cantidad;Unidad';
+  return [h, ...movimientos.map(m => `${m.lote};${m.producto};${m.descripcion};${m.binOrigen};${m.binDestino};${m.cantidad};${m.unidad}`)].join('\n');
+}
+
+function limpiarTodo() {
+  if (!confirm('¿Limpiar todos los movimientos?')) return;
+  movimientos = []; renderLista(); actualizarBadge();
+  document.getElementById('ejecutar-section').classList.remove('visible');
+  document.getElementById('exec-status').textContent = '';
+}
+
+// ─── CÁMARA ───────────────────────────────────────────────────────────────────
+async function abrirCamara(target) {
+  camTarget = target;
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    document.getElementById('cam-video').srcObject = camStream;
+    document.getElementById('cam-modal').classList.add('visible');
+    iniciarScan();
+  } catch(e) {
+    alert('No se pudo acceder a la cámara. Usa el campo de texto para ingresar el código.');
+  }
+}
+
+function cerrarCamara() {
+  if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  document.getElementById('cam-modal').classList.remove('visible');
+}
+
+function iniciarScan() {
+  // Usa BarcodeDetector si está disponible (Chrome/Android)
+  if ('BarcodeDetector' in window) {
+    const detector = new BarcodeDetector({ formats: ['qr_code','code_128','code_39','ean_13','ean_8','data_matrix'] });
+    const video = document.getElementById('cam-video');
+    scanInterval = setInterval(async () => {
+      try {
+        const codes = await detector.detect(video);
+        if (codes.length > 0) {
+          const val = codes[0].rawValue;
+          cerrarCamara();
+          if (camTarget === 'lote') {
+            document.getElementById('lote-input').value = val;
+            buscarLote();
+          } else {
+            document.getElementById('dest-input').value = val;
+            confirmarMovimiento();
+          }
+        }
+      } catch(e) {}
+    }, 300);
+  } else {
+    // Fallback: captura manual
+    document.getElementById('cam-hint').textContent = 'BarcodeDetector no disponible en este navegador. Usa el campo de texto.';
+    setTimeout(cerrarCamara, 3000);
+  }
+}
+
+// ─── UI ───────────────────────────────────────────────────────────────────────
+function actualizarBadge() {
+  const b = document.getElementById('badge');
+  b.style.display = movimientos.length === 0 ? 'none' : 'inline-block';
+  b.textContent = movimientos.length;
+}
+
+function mostrarError(el, msg) { el.textContent = msg; el.classList.add('visible'); }
+
+function actualizarSteps() {
+  document.getElementById('s1').className = 'step ' + (inventario.length > 0 ? 'done' : '');
+  document.getElementById('s2').className = 'step ' + (rolloActual ? 'done' : (inventario.length > 0 ? 'active' : ''));
+  document.getElementById('s3').className = 'step ' + (rolloActual ? 'active' : '');
+}
+</script>
+</body>
+</html>
