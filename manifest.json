@@ -1,0 +1,27 @@
+{
+  "name": "WMS Rollos TEXCORP",
+  "short_name": "WMS Rollos",
+  "description": "Sistema de gestion de movimientos de rollos para almacen TEXCORP",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f1117",
+  "theme_color": "#00e5a0",
+  "lang": "es-PE",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgZmlsbD0iIzBmMTExNyIgcng9IjI0Ii8+PHRleHQgeD0iOTYiIHk9IjExNSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjU2IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0iIzAwZTVhMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+V01TPC90ZXh0Pjx0ZXh0IHg9Ijk2IiB5PSIxNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iI2U4ZWFmMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Um9sbG9zPC90ZXh0Pjwvc3ZnPg==",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iIzBmMTExNyIgcng9IjY0Ii8+PHRleHQgeD0iMjU2IiB5PSIzMDAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNDgiIGZvbnQtd2VpZ2h0PSJib2xkIiBmaWxsPSIjMDBlNWEwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5XTVM8L3RleHQ+PHRleHQgeD0iMjU2IiB5PSI0MTAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSI1NCIgZmlsbD0iI2U4ZWFmMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Um9sbG9zPC90ZXh0Pjwvc3ZnPg==",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

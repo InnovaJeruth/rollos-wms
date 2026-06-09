@@ -1,422 +1,1500 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-PE">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Rollos WMS</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-:root {
-  --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
-  --accent: #00e5a0; --accent2: #0078ff; --danger: #ff4d6d; --warn: #f59e0b;
-  --text: #e8eaf0; --muted: #8b92a5; --border: #2a2f45; --radius: 14px;
-}
-body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; min-height: 100vh; font-size: 16px; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1117">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <title>WMS Rollos TEXCORP</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface-2: #232735;
+      --border: #2d3142;
+      --accent: #00e5a0;
+      --accent-2: #0078ff;
+      --error: #ff4d6d;
+      --warn: #f59e0b;
+      --text: #e8eaf0;
+      --text-dim: #8b91a3;
+    }
 
-/* HEADER */
-header { background: var(--surface); border-bottom: 2px solid var(--accent); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-header h1 { font-size: 17px; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
-#badge { background: var(--accent); color: #000; font-weight: bold; font-size: 14px; padding: 3px 12px; border-radius: 20px; display: none; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 18px;
+      line-height: 1.4;
+      overflow: hidden;
+      overscroll-behavior: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    input, textarea { -webkit-user-select: text; user-select: text; }
 
-/* SECCIONES */
-.section { padding: 16px 18px; border-bottom: 1px solid var(--border); }
-.section-title { font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; }
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      background: var(--bg);
+    }
 
-/* UPLOAD */
-#upload-area { border: 2px dashed var(--border); border-radius: var(--radius); padding: 22px; text-align: center; cursor: pointer; background: var(--surface); transition: border-color 0.2s; }
-#upload-area.loaded { border-color: var(--accent); }
-#upload-area p { color: var(--muted); font-size: 15px; }
-#upload-area.loaded p { color: var(--accent); }
-#file-input { display: none; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      min-height: 48px;
+    }
+    .topbar .title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .topbar .sub {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
 
-/* STEPS */
-.step-bar { display: flex; gap: 8px; margin-bottom: 14px; }
-.step { flex: 1; height: 4px; background: var(--border); border-radius: 2px; transition: background 0.3s; }
-.step.active { background: var(--warn); }
-.step.done { background: var(--accent); }
+    .icon-btn {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .icon-btn:active { opacity: 0.7; }
 
-/* INPUTS */
-.scan-row { display: flex; gap: 8px; align-items: stretch; }
-.scan-input { flex: 1; background: var(--surface2); border: 2px solid var(--border); border-radius: 10px; padding: 14px 14px; color: var(--text); font-family: 'Courier New', monospace; font-size: 16px; outline: none; transition: border-color 0.2s; }
-.scan-input:focus { border-color: var(--accent); }
-.scan-input::placeholder { color: var(--muted); font-size: 14px; }
+    .status-pill {
+      font-size: 13px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: var(--surface-2);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-pill .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-dim);
+    }
+    .status-pill.online .dot { background: var(--accent); }
+    .status-pill.offline .dot { background: var(--warn); }
 
-/* BOTONES */
-.btn { padding: 14px 18px; border: none; border-radius: 10px; font-family: 'Courier New', monospace; font-size: 15px; font-weight: bold; cursor: pointer; letter-spacing: 1px; transition: opacity 0.15s, transform 0.1s; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.btn:active { transform: scale(0.96); opacity: 0.8; }
-.btn-accent { background: var(--accent); color: #000; }
-.btn-blue { background: var(--accent2); color: #fff; }
-.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-.btn-danger { background: var(--danger); color: #fff; }
-.btn-warn { background: var(--warn); color: #000; }
-.btn-full { width: 100%; margin-top: 10px; padding: 16px; font-size: 16px; }
-.btn:disabled { opacity: 0.3; cursor: not-allowed; }
-.btn-icon { width: 52px; min-width: 52px; font-size: 20px; padding: 0; }
+    .screen {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      padding: 16px;
+      overflow-y: auto;
+    }
+    .screen.active { display: flex; }
+    .screen.no-scroll { overflow: hidden; }
 
-/* INFO CARD */
-.info-card { background: var(--surface); border: 2px solid var(--accent); border-radius: var(--radius); padding: 14px; margin-top: 12px; display: none; }
-.info-card.visible { display: block; }
-.info-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--border); gap: 8px; }
-.info-row:last-child { border-bottom: none; }
-.info-label { color: var(--muted); font-size: 12px; letter-spacing: 1px; white-space: nowrap; }
-.info-value { color: var(--accent); font-size: 15px; font-weight: bold; text-align: right; word-break: break-all; }
+    h1 { font-size: 22px; margin: 0 0 14px; font-weight: 700; }
+    h2 { font-size: 14px; margin: 18px 0 8px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+    p { margin: 0 0 12px; }
+    label { display: block; margin: 14px 0 6px; font-size: 15px; color: var(--text-dim); }
 
-/* DESTINO CARD */
-.dest-card { background: var(--surface); border: 2px solid var(--accent2); border-radius: var(--radius); padding: 14px; margin-top: 12px; display: none; text-align: center; }
-.dest-card.visible { display: block; }
-.dest-bin { font-size: 24px; color: var(--accent2); font-weight: bold; letter-spacing: 2px; padding: 6px 0; }
+    input[type="text"], input[type="password"], input[type="file"] {
+      width: 100%;
+      padding: 16px 14px;
+      font-size: 20px;
+      background: var(--surface);
+      color: var(--text);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      outline: none;
+      min-height: 60px;
+    }
+    input[type="text"]:focus, input[type="password"]:focus {
+      border-color: var(--accent);
+    }
+    input[readonly] { color: var(--text-dim); background: var(--surface-2); }
 
-/* LISTA */
-.mov-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px; animation: fadeIn 0.2s ease; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-.mov-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.mov-lote { color: var(--accent); font-size: 16px; font-weight: bold; }
-.mov-delete { background: none; border: none; color: var(--danger); font-size: 22px; cursor: pointer; padding: 0 4px; line-height: 1; }
-.mov-detail { font-size: 13px; color: var(--muted); line-height: 1.8; }
-.mov-arrow { color: var(--accent2); font-weight: bold; }
-.mov-desc { color: var(--text); font-size: 14px; margin-bottom: 2px; }
-.empty { text-align: center; padding: 28px; color: var(--muted); font-size: 14px; }
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 64px;
+      padding: 14px 18px;
+      font-size: 19px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      background: var(--accent);
+      color: #001b13;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.7; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn.secondary { background: var(--surface-2); color: var(--text); border: 2px solid var(--border); }
+    .btn.danger { background: var(--error); color: #fff; }
+    .btn.warn { background: var(--warn); color: #1a1100; }
+    .btn.blue { background: var(--accent-2); color: #fff; }
+    .btn-row { display: flex; gap: 10px; }
+    .btn-row .btn { flex: 1; }
 
-/* ERROR */
-.error-msg { background: rgba(255,77,109,0.12); border: 1px solid var(--danger); border-radius: 8px; padding: 10px 14px; color: var(--danger); font-size: 14px; margin-top: 10px; display: none; }
-.error-msg.visible { display: block; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .card.highlight { border-color: var(--accent); }
+    .card.alert { border-color: var(--error); }
 
-/* SUCCESS */
-.success-msg { background: rgba(0,229,160,0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 14px; color: var(--accent); font-size: 14px; margin-top: 10px; display: none; }
-.success-msg.visible { display: block; }
+    .big-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent);
+      word-break: break-all;
+    }
+    .label-strong {
+      font-size: 14px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
 
-/* CAMERA MODAL */
-#cam-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 200; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
-#cam-modal.visible { display: flex; }
-#cam-video { width: 100%; max-width: 420px; border-radius: 12px; border: 2px solid var(--accent); }
-#cam-close { position: absolute; top: 20px; right: 20px; background: var(--danger); color: #fff; border: none; border-radius: 50%; width: 44px; height: 44px; font-size: 20px; cursor: pointer; }
-#cam-hint { color: var(--muted); font-size: 13px; text-align: center; padding: 0 20px; }
+    .ask {
+      font-size: 22px;
+      font-weight: 600;
+      text-align: center;
+      margin: 18px 0 14px;
+    }
 
-/* EJECUTAR */
-#ejecutar-section { display: none; }
-#ejecutar-section.visible { display: block; }
-</style>
+    .yesno {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .yesno .btn { min-height: 100px; font-size: 26px; }
+    .yesno .btn.yes { background: var(--accent); color: #001b13; }
+    .yesno .btn.no  { background: var(--error); color: #fff; }
+
+    .mov-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .mov-item.discrep { border-left-color: var(--error); }
+    .mov-item .info { flex: 1; min-width: 0; }
+    .mov-item .lote { font-weight: 700; font-size: 17px; }
+    .mov-item .path { font-size: 14px; color: var(--text-dim); word-break: break-all; }
+    .mov-item .del {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--error);
+      width: 40px; height: 40px;
+      border-radius: 8px;
+      font-size: 22px;
+      cursor: pointer;
+    }
+
+    .flash {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface-2);
+      color: var(--text);
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 15px;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      max-width: 90%;
+      text-align: center;
+    }
+    .flash.show { opacity: 1; }
+    .flash.ok { border-color: var(--accent); }
+    .flash.err { border-color: var(--error); }
+
+    .footer-info {
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--text-dim);
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      text-align: center;
+    }
+
+    .scan-stage {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+    .step-indicator {
+      font-size: 13px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    /* Fila input + boton camara */
+    .scan-row {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+    }
+    .scan-row input { flex: 1; }
+    .scan-cam-btn {
+      display: none;
+      width: 60px;
+      min-height: 60px;
+      background: var(--surface-2);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      color: var(--accent);
+      font-size: 26px;
+      cursor: pointer;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    body.has-camera .scan-cam-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .scan-cam-btn:active { opacity: 0.7; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .summary-grid .card { margin: 0; text-align: center; }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px 10px;
+      color: var(--text-dim);
+    }
+
+    .link {
+      color: var(--accent-2);
+      text-decoration: underline;
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-size: 14px;
+      padding: 4px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 8px;
+      background: var(--surface-2);
+      color: var(--text-dim);
+      margin-left: 6px;
+    }
+    .badge.err { background: var(--error); color: #fff; }
+    .badge.ok  { background: var(--accent); color: #001b13; }
+    .badge.warn{ background: var(--warn); color: #1a1100; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.78);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 16px;
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal {
+      background: var(--surface);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      padding: 18px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    /* Modal camara */
+    #cam-modal .modal {
+      padding: 0;
+      max-width: 560px;
+      overflow: hidden;
+    }
+    #cam-video {
+      width: 100%;
+      max-height: 60vh;
+      background: #000;
+      display: block;
+    }
+    .cam-controls { padding: 14px; }
+    #cam-hint {
+      text-align: center;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    .cam-frame {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cam-frame::before {
+      content: '';
+      width: 70%;
+      height: 40%;
+      border: 3px solid var(--accent);
+      border-radius: 12px;
+      box-shadow: 0 0 0 2000px rgba(0,0,0,0.3);
+    }
+
+    @media (max-height: 500px) {
+      .btn { min-height: 56px; font-size: 17px; }
+      .yesno .btn { min-height: 80px; font-size: 22px; }
+      h1 { font-size: 19px; }
+      input[type="text"] { padding: 12px; font-size: 18px; min-height: 52px; }
+      .scan-cam-btn { min-height: 52px; }
+    }
+  </style>
 </head>
 <body>
-
-<header>
-  <h1>⬡ Rollos WMS</h1>
-  <span id="badge">0</span>
-</header>
-
-<!-- 1. INVENTARIO -->
-<div class="section">
-  <div class="section-title">1 · Inventario SAP</div>
-  <div id="upload-area" onclick="document.getElementById('file-input').click()">
-    <p id="upload-text">📂 Cargar Excel de /SCWM/MON (.xlsx)</p>
-  </div>
-  <input type="file" id="file-input" accept=".xlsx,.xls,.csv,.txt">
-  <div id="inv-status" style="font-size:12px; color:var(--muted); margin-top:8px; text-align:center;"></div>
-</div>
-
-<!-- 2. ESCANEAR ROLLO -->
-<div class="section">
-  <div class="section-title">2 · Escanear Rollo</div>
-  <div class="step-bar">
-    <div class="step" id="s1"></div>
-    <div class="step" id="s2"></div>
-    <div class="step" id="s3"></div>
-  </div>
-  <div class="scan-row">
-    <input class="scan-input" id="lote-input" placeholder="Lote SAP ID" autocomplete="off" autocorrect="off" spellcheck="false">
-    <button class="btn btn-blue btn-icon" onclick="abrirCamara('lote')" title="Cámara">📷</button>
-    <button class="btn btn-accent" style="min-width:60px;" onclick="buscarLote()">OK</button>
-  </div>
-  <div class="error-msg" id="lote-error"></div>
-  <div class="info-card" id="rollo-card">
-    <div class="info-row"><span class="info-label">LOTE</span><span class="info-value" id="r-lote">-</span></div>
-    <div class="info-row"><span class="info-label">PRODUCTO</span><span class="info-value" id="r-prod">-</span></div>
-    <div class="info-row"><span class="info-label">DESCRIPCIÓN</span><span class="info-value" id="r-desc">-</span></div>
-    <div class="info-row"><span class="info-label">BIN ACTUAL</span><span class="info-value" id="r-bin">-</span></div>
-    <div class="info-row"><span class="info-label">CANTIDAD</span><span class="info-value" id="r-ctd">-</span></div>
-  </div>
-</div>
-
-<!-- 3. DESTINO -->
-<div class="section" id="destino-section" style="display:none;">
-  <div class="section-title">3 · Escanear Bin Destino</div>
-  <div class="scan-row">
-    <input class="scan-input" id="dest-input" placeholder="Código estante destino" autocomplete="off" autocorrect="off" spellcheck="false">
-    <button class="btn btn-blue btn-icon" onclick="abrirCamara('dest')" title="Cámara">📷</button>
-    <button class="btn btn-accent" style="min-width:60px;" onclick="confirmarMovimiento()">OK</button>
-  </div>
-  <div class="error-msg" id="dest-error"></div>
-  <div class="success-msg" id="dest-ok">✓ Movimiento agregado</div>
-  <div class="dest-card" id="dest-card">
-    <div style="font-size:11px; color:var(--muted); letter-spacing:1px;">DESTINO</div>
-    <div class="dest-bin" id="dest-bin-val">-</div>
-  </div>
-</div>
-
-<!-- LISTA -->
-<div class="section">
-  <div class="section-title">Movimientos Pendientes</div>
-  <div id="lista-movimientos">
-    <div class="empty">Sin movimientos aún</div>
-  </div>
-</div>
-
-<!-- EJECUTAR -->
-<div class="section" id="ejecutar-section">
-  <button class="btn btn-warn btn-full" onclick="ejecutarMovimientos()">
-    ▶ EJECUTAR MOVIMIENTOS EN SAP
-  </button>
-  <div id="exec-status" style="font-size:13px; color:var(--muted); margin-top:10px; text-align:center;"></div>
-  <button class="btn btn-danger btn-full" style="margin-top:16px;" onclick="limpiarTodo()">🗑 Limpiar Todo</button>
-</div>
-
-<!-- CAMERA MODAL -->
-<div id="cam-modal">
-  <button id="cam-close" onclick="cerrarCamara()">✕</button>
-  <video id="cam-video" autoplay playsinline muted></video>
-  <canvas id="cam-canvas" style="display:none;"></canvas>
-  <p id="cam-hint">Apunta la cámara al código QR o de barras.<br>Se detectará automáticamente.</p>
-</div>
-
-<script>
-let inventario = [], movimientos = [], rolloActual = null;
-let camStream = null, camTarget = null, scanInterval = null;
-
-// ─── ARCHIVO ──────────────────────────────────────────────────────────────────
-document.getElementById('file-input').addEventListener('change', function(e) {
-  const file = e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  if (file.name.match(/\.xlsx?$/i)) {
-    reader.onload = ev => parsearXLSX(ev.target.result, file.name);
-    reader.readAsArrayBuffer(file);
-  } else {
-    reader.onload = ev => parsearCSV(ev.target.result, file.name);
-    reader.readAsText(file, 'UTF-8');
-  }
-});
-
-function parsearXLSX(buffer, filename) {
-  try {
-    const wb = XLSX.read(buffer, { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
-    cargarRegistros(data, filename);
-  } catch(e) { alert('Error al leer Excel: ' + e.message); }
-}
-
-function parsearCSV(text, filename) {
-  const sep = text.includes('\t') ? '\t' : (text.includes(';') ? ';' : ',');
-  const lineas = text.trim().split('\n');
-  if (lineas.length < 2) return;
-  const headers = lineas[0].split(sep).map(h => h.trim().replace(/"/g,''));
-  const data = [];
-  for (let i = 1; i < lineas.length; i++) {
-    const cols = lineas[i].split(sep).map(c => c.trim().replace(/"/g,''));
-    const obj = {}; headers.forEach((h, idx) => obj[h] = cols[idx] || ''); data.push(obj);
-  }
-  cargarRegistros(data, filename);
-}
-
-function cargarRegistros(data, filename) {
-  inventario = [];
-  const sample = data[0] ? Object.keys(data[0]) : [];
-  const col = opts => sample.find(k => opts.some(o => k.toLowerCase().includes(o))) || '';
-  const cUbic = col(['ubicaci','bin','location']);
-  const cCtd  = col(['ctd','cantidad','qty','quantity']);
-  const cUm   = col(['unidad','um','uom','unit']);
-  const cProd = col(['producto','product','material']);
-  const cDesc = col(['descripci','description','desc']);
-  const cLote = col(['lote','lot','batch']);
-
-  for (const row of data) {
-    const lote = String(row[cLote] || '').trim();
-    if (!lote) continue;
-    inventario.push({ lote, producto: String(row[cProd]||'').trim(), descripcion: String(row[cDesc]||'').trim(), bin: String(row[cUbic]||'').trim(), cantidad: String(row[cCtd]||'').trim(), unidad: String(row[cUm]||'M').trim() });
-  }
-  document.getElementById('upload-area').classList.add('loaded');
-  document.getElementById('upload-text').textContent = `✓ ${inventario.length} registros cargados`;
-  document.getElementById('inv-status').textContent = filename;
-  actualizarSteps();
-}
-
-// ─── BUSCAR LOTE ──────────────────────────────────────────────────────────────
-document.getElementById('lote-input').addEventListener('keypress', e => { if(e.key==='Enter') buscarLote(); });
-
-function buscarLote() {
-  const val = document.getElementById('lote-input').value.trim();
-  const err = document.getElementById('lote-error');
-  err.classList.remove('visible'); rolloActual = null;
-  if (!val) return;
-  if (!inventario.length) { mostrarError(err, 'Primero carga el inventario'); return; }
-
-  const found = inventario.find(r => r.lote === val || r.lote.includes(val) || val.includes(r.lote));
-  if (!found) { mostrarError(err, `Lote "${val}" no encontrado`); document.getElementById('rollo-card').classList.remove('visible'); document.getElementById('destino-section').style.display='none'; return; }
-
-  rolloActual = found;
-  document.getElementById('r-lote').textContent = found.lote;
-  document.getElementById('r-prod').textContent = found.producto;
-  document.getElementById('r-desc').textContent = found.descripcion;
-  document.getElementById('r-bin').textContent  = found.bin;
-  document.getElementById('r-ctd').textContent  = found.cantidad + ' ' + found.unidad;
-  document.getElementById('rollo-card').classList.add('visible');
-  document.getElementById('destino-section').style.display = 'block';
-  document.getElementById('dest-input').value = '';
-  document.getElementById('dest-card').classList.remove('visible');
-  document.getElementById('dest-ok').classList.remove('visible');
-  document.getElementById('dest-error').classList.remove('visible');
-  document.getElementById('dest-input').focus();
-  actualizarSteps();
-  window.scrollTo({ top: document.getElementById('destino-section').offsetTop - 10, behavior: 'smooth' });
-}
-
-// ─── CONFIRMAR ────────────────────────────────────────────────────────────────
-document.getElementById('dest-input').addEventListener('keypress', e => { if(e.key==='Enter') confirmarMovimiento(); });
-
-function confirmarMovimiento() {
-  const dest = document.getElementById('dest-input').value.trim();
-  const err  = document.getElementById('dest-error');
-  err.classList.remove('visible');
-  if (!dest) return;
-  if (!rolloActual) { mostrarError(err, 'Primero escanea un rollo'); return; }
-  if (dest === rolloActual.bin) { mostrarError(err, 'Destino igual al origen'); return; }
-
-  document.getElementById('dest-bin-val').textContent = dest;
-  document.getElementById('dest-card').classList.add('visible');
-  document.getElementById('dest-ok').classList.add('visible');
-
-  movimientos.push({ ...rolloActual, binOrigen: rolloActual.bin, binDestino: dest });
-  renderLista(); actualizarBadge();
-  document.getElementById('ejecutar-section').classList.add('visible');
-
-  setTimeout(() => {
-    document.getElementById('lote-input').value = '';
-    document.getElementById('dest-input').value = '';
-    document.getElementById('rollo-card').classList.remove('visible');
-    document.getElementById('dest-card').classList.remove('visible');
-    document.getElementById('dest-ok').classList.remove('visible');
-    document.getElementById('destino-section').style.display = 'none';
-    rolloActual = null;
-    document.getElementById('lote-input').focus();
-    actualizarSteps();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, 1200);
-}
-
-// ─── LISTA ────────────────────────────────────────────────────────────────────
-function renderLista() {
-  const cont = document.getElementById('lista-movimientos');
-  if (!movimientos.length) { cont.innerHTML = '<div class="empty">Sin movimientos aún</div>'; return; }
-  cont.innerHTML = movimientos.map((m, i) => `
-    <div class="mov-item">
-      <div class="mov-header">
-        <span class="mov-lote">${m.lote}</span>
-        <button class="mov-delete" onclick="eliminarMov(${i})">×</button>
+  <div class="app">
+    <div class="topbar">
+      <div>
+        <div class="title">WMS Rollos</div>
+        <div class="sub" id="top-sub">TEXCORP</div>
       </div>
-      <div class="mov-desc">${m.descripcion}</div>
-      <div class="mov-detail">
-        <span style="color:var(--text)">${m.binOrigen}</span>
-        <span class="mov-arrow"> → </span>
-        <span style="color:var(--accent2)">${m.binDestino}</span>
-        &nbsp;|&nbsp;${m.cantidad} ${m.unidad}
+      <div class="topbar-right">
+        <button class="icon-btn" id="btn-admin" aria-label="Administrador" title="Administrador">⚙</button>
+        <div class="status-pill" id="net-pill">
+          <span class="dot"></span><span id="net-text">…</span>
+        </div>
       </div>
     </div>
-  `).join('');
-}
 
-function eliminarMov(i) {
-  movimientos.splice(i, 1); renderLista(); actualizarBadge();
-  if (!movimientos.length) document.getElementById('ejecutar-section').classList.remove('visible');
-}
+    <!-- PANTALLA 0: Identificacion (operario) -->
+    <section class="screen" id="screen-identify">
+      <h1>Identificacion</h1>
+      <p>Ingresa tu nombre para iniciar el turno.</p>
+      <label for="inp-operario">Nombre del operario</label>
+      <input type="text" id="inp-operario" autocomplete="off" placeholder="Ej: Juan Perez" inputmode="text">
+      <button class="btn" id="btn-iniciar">Iniciar turno</button>
+      <div id="op-inv-warn" class="card" style="margin-top:18px; display:none; border-color: var(--warn);">
+        <div class="label-strong">⚠️ Estado del inventario</div>
+        <div id="op-inv-msg">Sin inventario cargado. Solicita al administrador cargarlo.</div>
+      </div>
+    </section>
 
-// ─── EJECUTAR ─────────────────────────────────────────────────────────────────
-function ejecutarMovimientos() {
-  if (!movimientos.length) return;
-  // Genera y descarga CSV para el script Python
-  const csv = generarCSV();
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `movimientos_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-  document.getElementById('exec-status').textContent = `✓ ${movimientos.length} movimientos exportados. El script Python procesará el archivo.`;
-}
+    <!-- PANTALLA ADMIN -->
+    <section class="screen" id="screen-admin">
+      <h1>Panel de administracion</h1>
 
-function generarCSV() {
-  const h = 'Lote;Producto;Descripcion;BinOrigen;BinDestino;Cantidad;Unidad';
-  return [h, ...movimientos.map(m => `${m.lote};${m.producto};${m.descripcion};${m.binOrigen};${m.binDestino};${m.cantidad};${m.unidad}`)].join('\n');
-}
+      <h2>Inventario SAP</h2>
+      <div class="card" id="adm-inv-status">
+        <div class="label-strong">Estado actual</div>
+        <div id="adm-inv-info">Sin inventario cargado</div>
+      </div>
+      <label for="inp-excel">Cargar Excel exportado de /SCWM/MON (.xlsx)</label>
+      <input type="file" id="inp-excel" accept=".xlsx,.xls">
 
-function limpiarTodo() {
-  if (!confirm('¿Limpiar todos los movimientos?')) return;
-  movimientos = []; renderLista(); actualizarBadge();
-  document.getElementById('ejecutar-section').classList.remove('visible');
-  document.getElementById('exec-status').textContent = '';
-}
+      <h2>Configuracion GitHub</h2>
+      <div class="card">
+        <p style="font-size:13px; color:var(--text-dim); margin:0 0 10px;">
+          Token con permisos <strong>contents:write</strong> en el repo. Se guarda en IndexedDB del dispositivo.
+        </p>
+        <label for="cfg-repo">Repo (usuario/repo)</label>
+        <input type="text" id="cfg-repo" placeholder="InnovaJeruth/rollos-wms" autocomplete="off">
+        <label for="cfg-branch">Branch</label>
+        <input type="text" id="cfg-branch" placeholder="main" autocomplete="off">
+        <label for="cfg-token">Token (ghp_... o github_pat_...)</label>
+        <input type="password" id="cfg-token" placeholder="ghp_xxxxxxxxxxxx" autocomplete="new-password">
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="btn" id="cfg-save">Guardar</button>
+          <button class="btn danger" id="cfg-clear">Borrar</button>
+        </div>
+      </div>
 
-// ─── CÁMARA ───────────────────────────────────────────────────────────────────
-async function abrirCamara(target) {
-  camTarget = target;
-  try {
-    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    document.getElementById('cam-video').srcObject = camStream;
-    document.getElementById('cam-modal').classList.add('visible');
-    iniciarScan();
-  } catch(e) {
-    alert('No se pudo acceder a la cámara. Usa el campo de texto para ingresar el código.');
-  }
-}
+      <h2>Sincronizacion pendiente</h2>
+      <div class="card">
+        <div class="label-strong">Sesiones pendientes de subir</div>
+        <div id="adm-pending-count" class="big-value">0</div>
+        <button class="btn" id="adm-btn-sync-pending" style="margin-top:8px;">Sincronizar pendientes</button>
+      </div>
 
-function cerrarCamara() {
-  if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
-  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
-  document.getElementById('cam-modal').classList.remove('visible');
-}
+      <h2>Sesion en curso</h2>
+      <div class="card" id="adm-session-card">
+        <div id="adm-session-info">No hay sesion activa</div>
+        <button class="btn danger" id="adm-discard-session" style="margin-top:10px; display:none;">Descartar sesion en curso</button>
+      </div>
 
-function iniciarScan() {
-  // Usa BarcodeDetector si está disponible (Chrome/Android)
-  if ('BarcodeDetector' in window) {
-    const detector = new BarcodeDetector({ formats: ['qr_code','code_128','code_39','ean_13','ean_8','data_matrix'] });
-    const video = document.getElementById('cam-video');
-    scanInterval = setInterval(async () => {
-      try {
-        const codes = await detector.detect(video);
-        if (codes.length > 0) {
-          const val = codes[0].rawValue;
-          cerrarCamara();
-          if (camTarget === 'lote') {
-            document.getElementById('lote-input').value = val;
-            buscarLote();
-          } else {
-            document.getElementById('dest-input').value = val;
-            confirmarMovimiento();
-          }
+      <button class="btn secondary" id="adm-exit" style="margin-top:14px;">Salir del panel</button>
+    </section>
+
+    <!-- PANTALLA 2: Escanear lote -->
+    <section class="screen no-scroll" id="screen-scan-lote">
+      <div class="step-indicator">Paso 1 de 3 — Escanear rollo</div>
+      <div class="scan-stage">
+        <h1>Lote SAP ID</h1>
+        <label for="inp-lote">Escanea QR o digita el lote</label>
+        <div class="scan-row">
+          <input type="text" id="inp-lote" autocomplete="off" inputmode="numeric" placeholder="Ej: 21559">
+          <button class="scan-cam-btn" data-target="lote" aria-label="Camara">📷</button>
+        </div>
+        <button class="btn" id="btn-buscar-lote">Buscar</button>
+        <button class="btn secondary" id="btn-ver-lista">Ver lista de movimientos (<span id="cnt-movs">0</span>)</button>
+        <button class="btn warn" id="btn-finalizar-temprano">Finalizar turno</button>
+      </div>
+    </section>
+
+    <!-- PANTALLA 3: Confirmar bin SAP -->
+    <section class="screen no-scroll" id="screen-confirm-bin">
+      <div class="step-indicator">Paso 2 de 3 — Confirmar ubicacion</div>
+      <div class="scan-stage">
+        <div class="card highlight">
+          <div class="label-strong">Lote</div>
+          <div class="big-value" id="conf-lote">-</div>
+          <div class="label-strong" style="margin-top:8px;">Producto</div>
+          <div id="conf-producto" style="font-size:16px;">-</div>
+          <div id="conf-descripcion" style="font-size:14px; color:var(--text-dim);">-</div>
+        </div>
+        <div class="card">
+          <div class="label-strong">SAP indica bin</div>
+          <div class="big-value" id="conf-bin-sap" style="color:var(--accent-2);">-</div>
+        </div>
+        <div class="ask">¿Esta fisicamente en esa ubicacion?</div>
+        <div class="yesno">
+          <button class="btn yes" id="btn-si-bin">SI</button>
+          <button class="btn no" id="btn-no-bin">NO</button>
+        </div>
+        <button class="btn secondary" id="btn-cancel-confirm" style="margin-top:10px;">Cancelar lote</button>
+      </div>
+    </section>
+
+    <!-- PANTALLA 4: Bin real -->
+    <section class="screen no-scroll" id="screen-real-bin">
+      <div class="step-indicator">Discrepancia — bin real</div>
+      <div class="scan-stage">
+        <div class="card alert">
+          <div class="label-strong">SAP decia</div>
+          <div id="real-bin-sap" style="font-size:18px;">-</div>
+        </div>
+        <h1>Bin real actual</h1>
+        <label for="inp-bin-real">Escanea la etiqueta del estante donde realmente esta</label>
+        <div class="scan-row">
+          <input type="text" id="inp-bin-real" autocomplete="off" placeholder="Ej: A002-05-01-01">
+          <button class="scan-cam-btn" data-target="bin-real" aria-label="Camara">📷</button>
+        </div>
+        <button class="btn" id="btn-conf-bin-real">Confirmar bin real</button>
+        <button class="btn secondary" id="btn-back-confirm">Atras</button>
+      </div>
+    </section>
+
+    <!-- PANTALLA 5: Bin destino -->
+    <section class="screen no-scroll" id="screen-dest-bin">
+      <div class="step-indicator">Paso 3 de 3 — Bin destino</div>
+      <div class="scan-stage">
+        <div class="card">
+          <div class="label-strong">Moviendo lote</div>
+          <div id="dest-lote" style="font-size:20px; font-weight:700;">-</div>
+          <div class="label-strong" style="margin-top:6px;">Desde</div>
+          <div id="dest-origen" style="font-size:16px;">-</div>
+        </div>
+        <h1>Bin destino</h1>
+        <label for="inp-bin-dest">Escanea la etiqueta del estante destino</label>
+        <div class="scan-row">
+          <input type="text" id="inp-bin-dest" autocomplete="off" placeholder="Ej: A003-08-07-03">
+          <button class="scan-cam-btn" data-target="bin-dest" aria-label="Camara">📷</button>
+        </div>
+        <button class="btn" id="btn-conf-mov">Confirmar movimiento</button>
+        <button class="btn secondary" id="btn-back-real">Atras</button>
+      </div>
+    </section>
+
+    <!-- PANTALLA 6: Lista movimientos -->
+    <section class="screen" id="screen-list">
+      <h1>Movimientos de esta sesion</h1>
+      <div id="list-summary" class="summary-grid">
+        <div class="card"><div class="label-strong">Total</div><div class="big-value" id="ls-total">0</div></div>
+        <div class="card"><div class="label-strong">Discrepancias</div><div class="big-value" id="ls-discrep" style="color:var(--error);">0</div></div>
+      </div>
+      <div id="list-items"></div>
+      <button class="btn" id="btn-back-scan">Seguir escaneando</button>
+      <button class="btn warn" id="btn-finalize-from-list">Finalizar turno</button>
+    </section>
+
+    <!-- PANTALLA 7: Finalizar -->
+    <section class="screen" id="screen-finalize">
+      <h1>Resumen del turno</h1>
+      <div class="summary-grid">
+        <div class="card"><div class="label-strong">Movimientos</div><div class="big-value" id="fin-total">0</div></div>
+        <div class="card"><div class="label-strong">Discrepancias</div><div class="big-value" id="fin-discrep" style="color:var(--error);">0</div></div>
+      </div>
+      <div class="card">
+        <div class="label-strong">Operario</div>
+        <div id="fin-operario">-</div>
+        <div class="label-strong" style="margin-top:6px;">Hora inicio</div>
+        <div id="fin-inicio">-</div>
+        <div class="label-strong" style="margin-top:6px;">Hora fin</div>
+        <div id="fin-fin">-</div>
+      </div>
+      <div class="card" id="sync-status-card">
+        <div class="label-strong">Estado sincronizacion</div>
+        <div id="sync-status">Pendiente</div>
+      </div>
+      <button class="btn" id="btn-sync-now">Sincronizar con GitHub</button>
+      <button class="btn secondary" id="btn-back-to-list">Volver a la lista</button>
+      <button class="btn danger" id="btn-end-session">Terminar y cerrar sesion</button>
+    </section>
+
+    <div class="footer-info" id="footer-info">v1.0.0</div>
+  </div>
+
+  <!-- Modal login admin -->
+  <div class="modal-backdrop" id="modal-admin-login">
+    <div class="modal">
+      <h1 style="margin-top:0;">Acceso administrador</h1>
+      <p style="font-size:14px; color:var(--text-dim);">Solo personal autorizado.</p>
+      <label for="adm-user">Usuario</label>
+      <input type="text" id="adm-user" autocomplete="off" placeholder="usuario">
+      <label for="adm-pass">Contraseña</label>
+      <input type="password" id="adm-pass" autocomplete="new-password" placeholder="••••••">
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="btn" id="adm-login-ok">Ingresar</button>
+        <button class="btn secondary" id="adm-login-cancel">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal camara -->
+  <div class="modal-backdrop" id="cam-modal">
+    <div class="modal">
+      <div style="position:relative; background:#000;">
+        <video id="cam-video" autoplay playsinline muted></video>
+        <div class="cam-frame"></div>
+      </div>
+      <div class="cam-controls">
+        <div id="cam-hint">Apunta la camara al codigo QR o de barras</div>
+        <button class="btn secondary" id="cam-close">Cerrar camara</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="flash" id="flash">mensaje</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script>
+  'use strict';
+
+  // ============================================================
+  // IndexedDB wrapper (Promises)
+  // ============================================================
+  const DB_NAME = 'wms_rollos';
+  const DB_VERSION = 1;
+  const STORES = {
+    config: 'config',
+    inventario: 'inventario',
+    sesion: 'sesion',
+    pendientes: 'pendientes'
+  };
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORES.config)) {
+          db.createObjectStore(STORES.config, { keyPath: 'key' });
         }
-      } catch(e) {}
-    }, 300);
-  } else {
-    // Fallback: captura manual
-    document.getElementById('cam-hint').textContent = 'BarcodeDetector no disponible en este navegador. Usa el campo de texto.';
-    setTimeout(cerrarCamara, 3000);
+        if (!db.objectStoreNames.contains(STORES.inventario)) {
+          const s = db.createObjectStore(STORES.inventario, { keyPath: 'lote' });
+          s.createIndex('producto', 'producto', { unique: false });
+        }
+        if (!db.objectStoreNames.contains(STORES.sesion)) {
+          db.createObjectStore(STORES.sesion, { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains(STORES.pendientes)) {
+          db.createObjectStore(STORES.pendientes, { keyPath: 'id' });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
   }
-}
 
-// ─── UI ───────────────────────────────────────────────────────────────────────
-function actualizarBadge() {
-  const b = document.getElementById('badge');
-  b.style.display = movimientos.length === 0 ? 'none' : 'inline-block';
-  b.textContent = movimientos.length;
-}
+  let _db = null;
+  async function db() { if (!_db) _db = await openDB(); return _db; }
 
-function mostrarError(el, msg) { el.textContent = msg; el.classList.add('visible'); }
+  function tx(store, mode) {
+    return db().then((d) => d.transaction(store, mode).objectStore(store));
+  }
 
-function actualizarSteps() {
-  document.getElementById('s1').className = 'step ' + (inventario.length > 0 ? 'done' : '');
-  document.getElementById('s2').className = 'step ' + (rolloActual ? 'done' : (inventario.length > 0 ? 'active' : ''));
-  document.getElementById('s3').className = 'step ' + (rolloActual ? 'active' : '');
-}
-</script>
+  async function dbGet(store, key) {
+    const s = await tx(store, 'readonly');
+    return new Promise((res, rej) => {
+      const r = s.get(key); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+  }
+  async function dbPut(store, value) {
+    const s = await tx(store, 'readwrite');
+    return new Promise((res, rej) => {
+      const r = s.put(value); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+  }
+  async function dbDelete(store, key) {
+    const s = await tx(store, 'readwrite');
+    return new Promise((res, rej) => {
+      const r = s.delete(key); r.onsuccess = () => res(); r.onerror = () => rej(r.error);
+    });
+  }
+  async function dbGetAll(store) {
+    const s = await tx(store, 'readonly');
+    return new Promise((res, rej) => {
+      const r = s.getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error);
+    });
+  }
+  async function dbClear(store) {
+    const s = await tx(store, 'readwrite');
+    return new Promise((res, rej) => {
+      const r = s.clear(); r.onsuccess = () => res(); r.onerror = () => rej(r.error);
+    });
+  }
+  async function dbCount(store) {
+    const s = await tx(store, 'readonly');
+    return new Promise((res, rej) => {
+      const r = s.count(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+  }
+
+  // ============================================================
+  // Utilidades
+  // ============================================================
+  function uuidv4() {
+    if (crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function fechaISO(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function horaISO(d) { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()); }
+  function tsISO(d) {
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' +
+           pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+  }
+  function normBin(s) { return String(s || '').trim().toUpperCase(); }
+  function normLote(s) { return String(s || '').trim().replace(/^0+/, '') || '0'; }
+  function b64encodeUtf8(str) { return btoa(unescape(encodeURIComponent(str))); }
+
+  function flash(msg, type) {
+    const el = document.getElementById('flash');
+    el.textContent = msg;
+    el.className = 'flash show ' + (type || '');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.className = 'flash ' + (type || ''); }, 2200);
+  }
+
+  // ============================================================
+  // Estado en memoria
+  // ============================================================
+  const state = {
+    operario: '',
+    sesion: null,
+    currentLote: null,
+    currentMov: null,
+    config: { repo: '', branch: 'main', token: '' },
+    hasCamera: false,
+    isAdmin: false
+  };
+
+  // Credenciales admin (hardcoded segun requerimiento)
+  const ADMIN_USER = 'sa';
+  const ADMIN_PASS = 'sa';
+
+  // ============================================================
+  // Navegacion entre pantallas
+  // ============================================================
+  function show(id) {
+    document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
+    setTimeout(() => {
+      const inp = el && el.querySelector('input[type="text"]');
+      if (inp && !inp.readOnly) try { inp.focus(); inp.select && inp.select(); } catch(e){}
+    }, 60);
+  }
+
+  // ============================================================
+  // Estado de red
+  // ============================================================
+  function refreshNetStatus() {
+    const pill = document.getElementById('net-pill');
+    const txt = document.getElementById('net-text');
+    if (navigator.onLine) {
+      pill.className = 'status-pill online'; txt.textContent = 'Online';
+    } else {
+      pill.className = 'status-pill offline'; txt.textContent = 'Offline';
+    }
+  }
+  window.addEventListener('online', refreshNetStatus);
+  window.addEventListener('offline', refreshNetStatus);
+
+  // ============================================================
+  // Deteccion de camara (oculta los botones si no hay)
+  // ============================================================
+  async function detectCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return false;
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      return devices.some((d) => d.kind === 'videoinput');
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ============================================================
+  // Camara — escaneo con BarcodeDetector
+  // ============================================================
+  let camStream = null;
+  let scanInterval = null;
+  let camTarget = null;
+
+  async function abrirCamara(target) {
+    camTarget = target;
+    document.getElementById('cam-hint').textContent = 'Apunta la camara al codigo QR o de barras';
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } }
+      });
+      const video = document.getElementById('cam-video');
+      video.srcObject = camStream;
+      document.getElementById('cam-modal').classList.add('show');
+      iniciarScan();
+    } catch (e) {
+      flash('No se pudo acceder a la camara: ' + e.message, 'err');
+      camTarget = null;
+    }
+  }
+
+  function cerrarCamara() {
+    if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+    if (camStream) {
+      camStream.getTracks().forEach((t) => t.stop());
+      camStream = null;
+    }
+    const video = document.getElementById('cam-video');
+    if (video) video.srcObject = null;
+    document.getElementById('cam-modal').classList.remove('show');
+  }
+
+  function iniciarScan() {
+    if ('BarcodeDetector' in window) {
+      let detector;
+      try {
+        detector = new BarcodeDetector({
+          formats: ['qr_code','code_128','code_39','ean_13','ean_8','data_matrix','itf','codabar','upc_a','upc_e']
+        });
+      } catch (e) {
+        detector = new BarcodeDetector();
+      }
+      const video = document.getElementById('cam-video');
+      scanInterval = setInterval(async () => {
+        if (!video.videoWidth) return;
+        try {
+          const codes = await detector.detect(video);
+          if (codes && codes.length > 0) {
+            const val = codes[0].rawValue;
+            const target = camTarget;
+            cerrarCamara();
+            entregarValorEscaneado(target, val);
+          }
+        } catch (e) { /* ignorar errores transitorios */ }
+      }, 300);
+    } else {
+      document.getElementById('cam-hint').textContent = 'BarcodeDetector no disponible en este navegador. Usa el campo de texto.';
+      setTimeout(cerrarCamara, 3000);
+    }
+  }
+
+  function entregarValorEscaneado(target, val) {
+    if (!target || val == null) return;
+    if (target === 'lote') {
+      document.getElementById('inp-lote').value = val;
+      buscarLote(val);
+    } else if (target === 'bin-real') {
+      document.getElementById('inp-bin-real').value = val;
+      confirmBinReal();
+    } else if (target === 'bin-dest') {
+      document.getElementById('inp-bin-dest').value = val;
+      confirmMovimiento();
+    }
+  }
+
+  // ============================================================
+  // Config GitHub
+  // ============================================================
+  async function loadConfig() {
+    const repo = await dbGet(STORES.config, 'repo');
+    const branch = await dbGet(STORES.config, 'branch');
+    const token = await dbGet(STORES.config, 'token');
+    state.config.repo = repo ? repo.value : '';
+    state.config.branch = branch ? branch.value : 'main';
+    state.config.token = token ? token.value : '';
+  }
+  async function saveConfig(cfg) {
+    await dbPut(STORES.config, { key: 'repo', value: cfg.repo });
+    await dbPut(STORES.config, { key: 'branch', value: cfg.branch || 'main' });
+    await dbPut(STORES.config, { key: 'token', value: cfg.token });
+    state.config = { ...cfg, branch: cfg.branch || 'main' };
+  }
+
+  // ============================================================
+  // Inventario (Excel)
+  // ============================================================
+  function pickColumn(row, candidates) {
+    const keys = Object.keys(row);
+    for (const cand of candidates) {
+      const found = keys.find((k) => k.toLowerCase().trim() === cand.toLowerCase().trim());
+      if (found) return row[found];
+    }
+    for (const cand of candidates) {
+      const found = keys.find((k) => k.toLowerCase().includes(cand.toLowerCase()));
+      if (found) return row[found];
+    }
+    return '';
+  }
+
+  async function parseExcel(file) {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const sheetName = wb.SheetNames[0];
+    const sheet = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+    if (!rows.length) throw new Error('Excel vacio');
+
+    await dbClear(STORES.inventario);
+    let count = 0;
+    for (const r of rows) {
+      const lote = String(pickColumn(r, ['Lote', 'Lote SAP', 'Batch'])).trim();
+      if (!lote) continue;
+      const item = {
+        lote: normLote(lote),
+        producto: String(pickColumn(r, ['Producto', 'Material', 'Codigo material', 'Codigo'])).trim(),
+        descripcion: String(pickColumn(r, ['Descripcion de producto', 'Descripcion', 'Descripcion material', 'Material descripcion'])).trim(),
+        ubicacion: normBin(pickColumn(r, ['Ubicacion', 'Bin', 'Storage Bin'])),
+        cantidad: String(pickColumn(r, ['Ctd.', 'Ctd', 'Cantidad', 'Quantity'])).trim(),
+        unidad: String(pickColumn(r, ['Unidad medida bal', 'Unidad', 'UM', 'Unit'])).trim()
+      };
+      await dbPut(STORES.inventario, item);
+      count++;
+    }
+    await dbPut(STORES.config, { key: 'inventario_fecha', value: tsISO(new Date()) });
+    await dbPut(STORES.config, { key: 'inventario_count', value: count });
+    return count;
+  }
+
+  async function refreshInventoryStatus() {
+    const count = await dbCount(STORES.inventario);
+    const fecha = await dbGet(STORES.config, 'inventario_fecha');
+    const info = document.getElementById('adm-inv-info');
+    if (info) {
+      if (count > 0 && fecha) {
+        info.innerHTML = `<strong>${count}</strong> registros cargados<br><span style="font-size:14px;color:var(--text-dim);">Cargado: ${fecha.value}</span>`;
+      } else {
+        info.innerHTML = '<span style="color:var(--warn);">⚠️ Sin inventario cargado</span>';
+      }
+    }
+    // Aviso al operario
+    const warn = document.getElementById('op-inv-warn');
+    const msg = document.getElementById('op-inv-msg');
+    if (warn && msg) {
+      if (count > 0) {
+        warn.style.display = 'none';
+      } else {
+        warn.style.display = 'block';
+        msg.textContent = 'Sin inventario cargado. Solicita al administrador cargarlo.';
+      }
+    }
+    return count;
+  }
+
+  // ============================================================
+  // Sesion
+  // ============================================================
+  async function startSesion(operario) {
+    const now = new Date();
+    const s = {
+      id: uuidv4(),
+      operario: operario,
+      fecha: fechaISO(now),
+      hora_inicio: horaISO(now),
+      hora_fin: null,
+      dispositivo: navigator.userAgent,
+      movimientos: []
+    };
+    state.sesion = s;
+    await dbPut(STORES.sesion, { id: 'current', data: s });
+  }
+  async function persistSesion() {
+    if (!state.sesion) return;
+    await dbPut(STORES.sesion, { id: 'current', data: state.sesion });
+  }
+  async function loadSesionActual() {
+    const r = await dbGet(STORES.sesion, 'current');
+    state.sesion = r ? r.data : null;
+  }
+  async function clearSesionActual() {
+    state.sesion = null;
+    await dbDelete(STORES.sesion, 'current');
+  }
+
+  function updateMovsCount() {
+    const c = (state.sesion && state.sesion.movimientos) ? state.sesion.movimientos.length : 0;
+    const el = document.getElementById('cnt-movs');
+    if (el) el.textContent = c;
+  }
+
+  // ============================================================
+  // Flujo de escaneo
+  // ============================================================
+  async function buscarLote(loteRaw) {
+    const lote = normLote(loteRaw);
+    if (!lote || lote === '0') { flash('Lote vacio', 'err'); return; }
+    const inv = await dbGet(STORES.inventario, lote);
+    if (!inv) {
+      flash('Lote ' + lote + ' no encontrado', 'err');
+      if (!confirm('Lote ' + lote + ' no esta en el inventario cargado. ¿Continuar de todos modos?')) return;
+      state.currentLote = {
+        lote: lote, producto: '', descripcion: '(no en inventario)',
+        ubicacion: '', cantidad: '', unidad: ''
+      };
+    } else {
+      state.currentLote = inv;
+    }
+    state.currentMov = {
+      lote: state.currentLote.lote,
+      producto: state.currentLote.producto,
+      descripcion: state.currentLote.descripcion,
+      bin_sap: state.currentLote.ubicacion,
+      bin_real: null,
+      discrepancia: false,
+      bin_destino: null,
+      cantidad: state.currentLote.cantidad,
+      unidad: state.currentLote.unidad,
+      timestamp: null
+    };
+    document.getElementById('conf-lote').textContent = state.currentLote.lote;
+    document.getElementById('conf-producto').textContent = state.currentLote.producto || '(sin codigo)';
+    document.getElementById('conf-descripcion').textContent = state.currentLote.descripcion || '';
+    document.getElementById('conf-bin-sap').textContent = state.currentLote.ubicacion || '(sin ubicacion SAP)';
+    show('screen-confirm-bin');
+  }
+
+  function confirmarBinSap(estaAhi) {
+    if (!state.currentMov) return;
+    if (estaAhi) {
+      state.currentMov.bin_real = state.currentMov.bin_sap;
+      state.currentMov.discrepancia = false;
+      goToDest();
+    } else {
+      document.getElementById('real-bin-sap').textContent = state.currentMov.bin_sap || '(sin ubicacion)';
+      document.getElementById('inp-bin-real').value = '';
+      show('screen-real-bin');
+    }
+  }
+
+  function confirmBinReal() {
+    if (!state.currentMov) return;
+    const v = normBin(document.getElementById('inp-bin-real').value);
+    if (!v) { flash('Escanea el bin real', 'err'); return; }
+    state.currentMov.bin_real = v;
+    state.currentMov.discrepancia = (v !== state.currentMov.bin_sap);
+    goToDest();
+  }
+
+  function goToDest() {
+    document.getElementById('dest-lote').textContent = state.currentMov.lote;
+    document.getElementById('dest-origen').textContent = state.currentMov.bin_real || '(sin origen)';
+    document.getElementById('inp-bin-dest').value = '';
+    show('screen-dest-bin');
+  }
+
+  async function confirmMovimiento() {
+    if (!state.currentMov) return;
+    const dest = normBin(document.getElementById('inp-bin-dest').value);
+    if (!dest) { flash('Escanea el bin destino', 'err'); return; }
+    if (dest === state.currentMov.bin_real) {
+      if (!confirm('El bin destino es igual al origen. ¿Confirmar de todos modos?')) return;
+    }
+    state.currentMov.bin_destino = dest;
+    state.currentMov.timestamp = tsISO(new Date());
+    state.sesion.movimientos.push(state.currentMov);
+    await persistSesion();
+    flash('Movimiento agregado ✓', 'ok');
+    state.currentLote = null;
+    state.currentMov = null;
+    document.getElementById('inp-lote').value = '';
+    updateMovsCount();
+    show('screen-scan-lote');
+  }
+
+  // ============================================================
+  // Lista
+  // ============================================================
+  function renderLista() {
+    const movs = (state.sesion && state.sesion.movimientos) || [];
+    const total = movs.length;
+    const discrep = movs.filter((m) => m.discrepancia).length;
+    document.getElementById('ls-total').textContent = total;
+    document.getElementById('ls-discrep').textContent = discrep;
+    const cont = document.getElementById('list-items');
+    if (!total) {
+      cont.innerHTML = '<div class="empty-state">No hay movimientos registrados aun</div>';
+      return;
+    }
+    cont.innerHTML = '';
+    movs.forEach((m, idx) => {
+      const div = document.createElement('div');
+      div.className = 'mov-item' + (m.discrepancia ? ' discrep' : '');
+      div.innerHTML = `
+        <div class="info">
+          <div class="lote">Lote ${m.lote}${m.discrepancia ? '<span class="badge err">⚠ Discrepancia</span>' : ''}</div>
+          <div class="path">${m.bin_real || '?'} → ${m.bin_destino || '?'}</div>
+          <div class="path" style="font-size:12px;">${m.producto || ''} ${m.descripcion ? '· ' + m.descripcion : ''}</div>
+        </div>
+        <button class="del" data-idx="${idx}" aria-label="Eliminar">×</button>`;
+      cont.appendChild(div);
+    });
+    cont.querySelectorAll('.del').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const i = parseInt(btn.getAttribute('data-idx'), 10);
+        if (!isNaN(i) && confirm('¿Eliminar este movimiento?')) {
+          state.sesion.movimientos.splice(i, 1);
+          await persistSesion();
+          updateMovsCount();
+          renderLista();
+        }
+      });
+    });
+  }
+
+  // ============================================================
+  // Finalizar
+  // ============================================================
+  function buildJSON() {
+    const s = state.sesion;
+    const movs = s.movimientos || [];
+    return {
+      id: s.id,
+      operario: s.operario,
+      fecha: s.fecha,
+      hora_inicio: s.hora_inicio,
+      hora_fin: s.hora_fin,
+      dispositivo: s.dispositivo,
+      total_movimientos: movs.length,
+      total_discrepancias: movs.filter((m) => m.discrepancia).length,
+      movimientos: movs
+    };
+  }
+
+  function renderFinalize() {
+    const s = state.sesion;
+    if (!s) return;
+    if (!s.hora_fin) s.hora_fin = horaISO(new Date());
+    const movs = s.movimientos || [];
+    document.getElementById('fin-total').textContent = movs.length;
+    document.getElementById('fin-discrep').textContent = movs.filter((m) => m.discrepancia).length;
+    document.getElementById('fin-operario').textContent = s.operario;
+    document.getElementById('fin-inicio').textContent = s.hora_inicio;
+    document.getElementById('fin-fin').textContent = s.hora_fin;
+    document.getElementById('sync-status').textContent = 'Pendiente';
+    document.getElementById('sync-status-card').style.borderColor = '';
+  }
+
+  async function finalizeAndStage() {
+    if (!state.sesion) return null;
+    if (!state.sesion.hora_fin) state.sesion.hora_fin = horaISO(new Date());
+    await persistSesion();
+    const json = buildJSON();
+    await dbPut(STORES.pendientes, {
+      id: json.id, json: json, status: 'pendiente', created_at: tsISO(new Date())
+    });
+    await refreshPendingCount();
+    return json;
+  }
+
+  // ============================================================
+  // GitHub sync
+  // ============================================================
+  async function uploadToGitHub(json) {
+    const cfg = state.config;
+    if (!cfg.repo || !cfg.token) throw new Error('GitHub no configurado');
+    if (!navigator.onLine) throw new Error('Sin conexion a internet');
+    const safeOp = (json.operario || 'sin_operario').replace(/[^a-zA-Z0-9_-]+/g, '_');
+    const filename = `movimientos_${safeOp}_${Date.now()}.json`;
+    const path = `pendientes/${filename}`;
+    const content = b64encodeUtf8(JSON.stringify(json, null, 2));
+    const url = `https://api.github.com/repos/${cfg.repo}/contents/${path}`;
+    const body = {
+      message: `mov: ${filename}`,
+      content: content,
+      branch: cfg.branch || 'main'
+    };
+    const resp = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'token ' + cfg.token,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok) {
+      let detail = '';
+      try { const j = await resp.json(); detail = j.message || ''; } catch(e){}
+      throw new Error('GitHub ' + resp.status + (detail ? ': ' + detail : ''));
+    }
+    return await resp.json();
+  }
+
+  async function syncCurrentSession() {
+    if (!state.sesion) { flash('No hay sesion activa', 'err'); return; }
+    if (!state.config.repo || !state.config.token) {
+      flash('GitHub no configurado. Contacta al administrador.', 'err');
+      return;
+    }
+    const card = document.getElementById('sync-status-card');
+    const st = document.getElementById('sync-status');
+    st.textContent = '🟡 Sincronizando...';
+    card.style.borderColor = 'var(--warn)';
+    try {
+      const json = await finalizeAndStage();
+      await uploadToGitHub(json);
+      await dbDelete(STORES.pendientes, json.id);
+      st.textContent = '🟢 Sincronizado con GitHub';
+      card.style.borderColor = 'var(--accent)';
+      flash('Sincronizado ✓', 'ok');
+      await refreshPendingCount();
+    } catch (e) {
+      st.textContent = '🟡 Guardado offline (' + e.message + ')';
+      card.style.borderColor = 'var(--warn)';
+      flash('No se pudo subir: ' + e.message, 'err');
+    }
+  }
+
+  async function syncAllPending() {
+    const all = await dbGetAll(STORES.pendientes);
+    if (!all.length) { flash('No hay pendientes', 'ok'); return; }
+    if (!navigator.onLine) { flash('Sin internet', 'err'); return; }
+    if (!state.config.repo || !state.config.token) {
+      flash('Configura GitHub primero', 'err');
+      return;
+    }
+    let ok = 0, fail = 0;
+    for (const it of all) {
+      try {
+        await uploadToGitHub(it.json);
+        await dbDelete(STORES.pendientes, it.id);
+        ok++;
+      } catch (e) { fail++; }
+    }
+    flash(`Sync: ${ok} OK, ${fail} fallaron`, fail ? 'err' : 'ok');
+    await refreshPendingCount();
+  }
+
+  async function refreshPendingCount() {
+    const c = await dbCount(STORES.pendientes);
+    const el = document.getElementById('adm-pending-count');
+    if (el) el.textContent = c;
+  }
+
+  // ============================================================
+  // Admin
+  // ============================================================
+  function openAdminLogin() {
+    document.getElementById('adm-user').value = '';
+    document.getElementById('adm-pass').value = '';
+    document.getElementById('modal-admin-login').classList.add('show');
+    setTimeout(() => {
+      try { document.getElementById('adm-user').focus(); } catch(e){}
+    }, 60);
+  }
+  function closeAdminLogin() {
+    document.getElementById('modal-admin-login').classList.remove('show');
+  }
+  function tryAdminLogin() {
+    const u = document.getElementById('adm-user').value.trim();
+    const p = document.getElementById('adm-pass').value;
+    if (u === ADMIN_USER && p === ADMIN_PASS) {
+      state.isAdmin = true;
+      closeAdminLogin();
+      openAdminPanel();
+    } else {
+      flash('Credenciales incorrectas', 'err');
+    }
+  }
+  async function openAdminPanel() {
+    await loadConfig();
+    document.getElementById('cfg-repo').value = state.config.repo || '';
+    document.getElementById('cfg-branch').value = state.config.branch || 'main';
+    document.getElementById('cfg-token').value = state.config.token || '';
+    await refreshInventoryStatus();
+    await refreshPendingCount();
+    renderAdminSessionCard();
+    show('screen-admin');
+  }
+  function renderAdminSessionCard() {
+    const info = document.getElementById('adm-session-info');
+    const btn = document.getElementById('adm-discard-session');
+    if (state.sesion) {
+      const n = (state.sesion.movimientos || []).length;
+      info.innerHTML = `<strong>${state.sesion.operario}</strong> — ${n} movimientos<br>` +
+                       `<span style="font-size:14px;color:var(--text-dim);">Inicio: ${state.sesion.fecha} ${state.sesion.hora_inicio}</span>`;
+      btn.style.display = '';
+    } else {
+      info.textContent = 'No hay sesion activa';
+      btn.style.display = 'none';
+    }
+  }
+
+  // ============================================================
+  // Event listeners
+  // ============================================================
+  document.addEventListener('DOMContentLoaded', async () => {
+    refreshNetStatus();
+    await loadConfig();
+    await loadSesionActual();
+    await refreshInventoryStatus();
+
+    // Deteccion de camara
+    state.hasCamera = await detectCamera();
+    if (state.hasCamera) document.body.classList.add('has-camera');
+
+    // Sesion en curso → ofrecer retomar
+    if (state.sesion && state.sesion.operario) {
+      const movs = (state.sesion.movimientos || []).length;
+      if (confirm(`Hay una sesion en curso de ${state.sesion.operario} con ${movs} movimientos. ¿Retomar?`)) {
+        document.getElementById('top-sub').textContent = state.sesion.operario;
+        updateMovsCount();
+        const invCount = await dbCount(STORES.inventario);
+        if (invCount > 0) show('screen-scan-lote');
+        else show('screen-identify');
+      } else {
+        await clearSesionActual();
+        show('screen-identify');
+      }
+    } else {
+      show('screen-identify');
+    }
+
+    // ---- Topbar admin ----
+    document.getElementById('btn-admin').addEventListener('click', openAdminLogin);
+
+    // ---- Modal login admin ----
+    document.getElementById('adm-login-ok').addEventListener('click', tryAdminLogin);
+    document.getElementById('adm-login-cancel').addEventListener('click', closeAdminLogin);
+    document.getElementById('adm-pass').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); tryAdminLogin(); }
+    });
+    document.getElementById('modal-admin-login').addEventListener('click', (e) => {
+      if (e.target.id === 'modal-admin-login') closeAdminLogin();
+    });
+
+    // ---- Identificacion ----
+    document.getElementById('btn-iniciar').addEventListener('click', async () => {
+      const nom = document.getElementById('inp-operario').value.trim();
+      if (!nom) { flash('Ingresa tu nombre', 'err'); return; }
+      const invCount = await dbCount(STORES.inventario);
+      if (invCount === 0) {
+        flash('Sin inventario cargado. Contacta al administrador.', 'err');
+        return;
+      }
+      await startSesion(nom);
+      document.getElementById('top-sub').textContent = nom;
+      updateMovsCount();
+      show('screen-scan-lote');
+    });
+
+    // ---- Admin panel ----
+    document.getElementById('adm-exit').addEventListener('click', () => {
+      state.isAdmin = false;
+      show('screen-identify');
+    });
+    document.getElementById('inp-excel').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        flash('Procesando Excel...', '');
+        const n = await parseExcel(file);
+        flash(`Inventario cargado: ${n} registros`, 'ok');
+        await refreshInventoryStatus();
+      } catch (err) {
+        flash('Error al leer Excel: ' + err.message, 'err');
+      } finally {
+        e.target.value = '';
+      }
+    });
+    document.getElementById('cfg-save').addEventListener('click', async () => {
+      const repo = document.getElementById('cfg-repo').value.trim();
+      const branch = document.getElementById('cfg-branch').value.trim() || 'main';
+      const token = document.getElementById('cfg-token').value.trim();
+      if (!repo || !token) { flash('Repo y token requeridos', 'err'); return; }
+      if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { flash('Formato repo: usuario/repo', 'err'); return; }
+      await saveConfig({ repo, branch, token });
+      flash('Configuracion guardada', 'ok');
+    });
+    document.getElementById('cfg-clear').addEventListener('click', async () => {
+      if (!confirm('¿Borrar configuracion de GitHub?')) return;
+      await dbDelete(STORES.config, 'repo');
+      await dbDelete(STORES.config, 'branch');
+      await dbDelete(STORES.config, 'token');
+      state.config = { repo: '', branch: 'main', token: '' };
+      document.getElementById('cfg-repo').value = '';
+      document.getElementById('cfg-branch').value = 'main';
+      document.getElementById('cfg-token').value = '';
+      flash('Configuracion borrada', 'ok');
+    });
+    document.getElementById('adm-btn-sync-pending').addEventListener('click', syncAllPending);
+    document.getElementById('adm-discard-session').addEventListener('click', async () => {
+      if (!confirm('¿Descartar la sesion en curso? Se perderan los movimientos no sincronizados.')) return;
+      await clearSesionActual();
+      document.getElementById('top-sub').textContent = 'TEXCORP';
+      updateMovsCount();
+      renderAdminSessionCard();
+      flash('Sesion descartada', 'ok');
+    });
+
+    // ---- Escanear lote ----
+    const inpLote = document.getElementById('inp-lote');
+    inpLote.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); buscarLote(inpLote.value); }
+    });
+    document.getElementById('btn-buscar-lote').addEventListener('click', () => buscarLote(inpLote.value));
+    document.getElementById('btn-ver-lista').addEventListener('click', () => { renderLista(); show('screen-list'); });
+    document.getElementById('btn-finalizar-temprano').addEventListener('click', () => { renderFinalize(); show('screen-finalize'); });
+
+    // ---- Confirmar bin ----
+    document.getElementById('btn-si-bin').addEventListener('click', () => confirmarBinSap(true));
+    document.getElementById('btn-no-bin').addEventListener('click', () => confirmarBinSap(false));
+    document.getElementById('btn-cancel-confirm').addEventListener('click', () => {
+      state.currentLote = null;
+      state.currentMov = null;
+      document.getElementById('inp-lote').value = '';
+      show('screen-scan-lote');
+    });
+
+    // ---- Bin real ----
+    const inpReal = document.getElementById('inp-bin-real');
+    inpReal.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); confirmBinReal(); }
+    });
+    document.getElementById('btn-conf-bin-real').addEventListener('click', confirmBinReal);
+    document.getElementById('btn-back-confirm').addEventListener('click', () => show('screen-confirm-bin'));
+
+    // ---- Bin destino ----
+    const inpDest = document.getElementById('inp-bin-dest');
+    inpDest.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); confirmMovimiento(); }
+    });
+    document.getElementById('btn-conf-mov').addEventListener('click', confirmMovimiento);
+    document.getElementById('btn-back-real').addEventListener('click', () => {
+      if (state.currentMov && state.currentMov.discrepancia) show('screen-real-bin');
+      else show('screen-confirm-bin');
+    });
+
+    // ---- Lista ----
+    document.getElementById('btn-back-scan').addEventListener('click', () => show('screen-scan-lote'));
+    document.getElementById('btn-finalize-from-list').addEventListener('click', () => { renderFinalize(); show('screen-finalize'); });
+
+    // ---- Finalizar ----
+    document.getElementById('btn-sync-now').addEventListener('click', syncCurrentSession);
+    document.getElementById('btn-back-to-list').addEventListener('click', () => { renderLista(); show('screen-list'); });
+    document.getElementById('btn-end-session').addEventListener('click', async () => {
+      if (!confirm('¿Terminar sesion? Los movimientos quedan guardados localmente.')) return;
+      if (state.sesion && (state.sesion.movimientos || []).length > 0) {
+        const existing = await dbGet(STORES.pendientes, state.sesion.id);
+        if (!existing) {
+          await finalizeAndStage();
+        }
+      }
+      await clearSesionActual();
+      document.getElementById('top-sub').textContent = 'TEXCORP';
+      document.getElementById('inp-operario').value = '';
+      updateMovsCount();
+      show('screen-identify');
+    });
+
+    // ---- Botones de camara en cada input ----
+    document.querySelectorAll('.scan-cam-btn').forEach((btn) => {
+      btn.addEventListener('click', () => abrirCamara(btn.getAttribute('data-target')));
+    });
+    document.getElementById('cam-close').addEventListener('click', cerrarCamara);
+    document.getElementById('cam-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'cam-modal') cerrarCamara();
+    });
+
+    // ---- Auto sync al recuperar conexion ----
+    window.addEventListener('online', async () => {
+      const c = await dbCount(STORES.pendientes);
+      if (c > 0 && state.config.repo && state.config.token) {
+        flash('Conexion recuperada, sincronizando pendientes...', '');
+        await syncAllPending();
+      }
+    });
+  });
+
+  // ============================================================
+  // Service Worker
+  // ============================================================
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch((err) => {
+        console.warn('SW registro fallo:', err);
+      });
+    });
+  }
+  </script>
 </body>
 </html>
