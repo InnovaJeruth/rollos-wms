@@ -420,9 +420,11 @@
       <label for="inp-operario">Nombre del operario</label>
       <input type="text" id="inp-operario" autocomplete="off" placeholder="Ej: Juan Perez" inputmode="text">
       <button class="btn" id="btn-iniciar">Iniciar turno</button>
-      <div id="op-inv-warn" class="card" style="margin-top:18px; display:none; border-color: var(--warn);">
-        <div class="label-strong">⚠️ Estado del inventario</div>
-        <div id="op-inv-msg">Sin inventario cargado. Solicita al administrador cargarlo.</div>
+
+      <div class="card" id="op-inv-card" style="margin-top:18px;">
+        <div class="label-strong">Inventario actual</div>
+        <div id="op-inv-info" style="font-size:15px;">Verificando...</div>
+        <button class="btn secondary" id="btn-refresh-inv" style="margin-top:10px;">Actualizar inventario desde GitHub</button>
       </div>
     </section>
 
@@ -430,15 +432,7 @@
     <section class="screen" id="screen-admin">
       <h1>Panel de administracion</h1>
 
-      <h2>Inventario SAP</h2>
-      <div class="card" id="adm-inv-status">
-        <div class="label-strong">Estado actual</div>
-        <div id="adm-inv-info">Sin inventario cargado</div>
-      </div>
-      <label for="inp-excel">Cargar Excel exportado de /SCWM/MON (.xlsx)</label>
-      <input type="file" id="inp-excel" accept=".xlsx,.xls">
-
-      <h2>Configuracion GitHub</h2>
+      <h2>1. Configuracion GitHub</h2>
       <div class="card">
         <p style="font-size:13px; color:var(--text-dim); margin:0 0 10px;">
           Token con permisos <strong>contents:write</strong> en el repo. Se guarda en IndexedDB del dispositivo.
@@ -451,8 +445,27 @@
         <input type="password" id="cfg-token" placeholder="ghp_xxxxxxxxxxxx" autocomplete="new-password">
         <div class="btn-row" style="margin-top:14px;">
           <button class="btn" id="cfg-save">Guardar</button>
-          <button class="btn danger" id="cfg-clear">Borrar</button>
+          <button class="btn secondary" id="cfg-test">Probar conexion</button>
         </div>
+        <button class="btn danger" id="cfg-clear" style="margin-top:8px;">Borrar configuracion</button>
+        <div id="cfg-status" style="margin-top:10px; font-size:14px; color:var(--text-dim);">Estado: sin configurar</div>
+      </div>
+
+      <h2>2. Inventario SAP</h2>
+      <div class="card" id="adm-inv-status">
+        <div class="label-strong">Estado local</div>
+        <div id="adm-inv-info">Sin inventario cargado</div>
+        <div class="label-strong" style="margin-top:10px;">Estado en GitHub</div>
+        <div id="adm-inv-github" style="font-size:14px; color:var(--text-dim);">-</div>
+      </div>
+      <label for="inp-excel">Cargar Excel exportado de /SCWM/MON (.xlsx)</label>
+      <p id="excel-help" style="font-size:13px; color:var(--warn); margin:6px 0;">
+        ⚠️ Configura GitHub primero (paso 1) antes de cargar el Excel.
+      </p>
+      <input type="file" id="inp-excel" accept=".xlsx,.xls" disabled>
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn secondary" id="adm-btn-pull-inv">Bajar de GitHub</button>
+        <button class="btn secondary" id="adm-btn-push-inv">Republicar a GitHub</button>
       </div>
 
       <h2>Sincronizacion pendiente</h2>
@@ -727,6 +740,11 @@
   function normBin(s) { return String(s || '').trim().toUpperCase(); }
   function normLote(s) { return String(s || '').trim().replace(/^0+/, '') || '0'; }
   function b64encodeUtf8(str) { return btoa(unescape(encodeURIComponent(str))); }
+  function b64decodeUtf8(b64) {
+    const clean = String(b64 || '').replace(/\s/g, '');
+    try { return decodeURIComponent(escape(atob(clean))); }
+    catch (e) { return atob(clean); }
+  }
 
   function flash(msg, type) {
     const el = document.getElementById('flash');
@@ -777,6 +795,8 @@
     } else {
       pill.className = 'status-pill offline'; txt.textContent = 'Offline';
     }
+    // refrescar boton de inventario del operario si esta visible
+    try { refreshInventoryStatus(); } catch (e) {}
   }
   window.addEventListener('online', refreshNetStatus);
   window.addEventListener('offline', refreshNetStatus);
@@ -831,26 +851,20 @@
 
   function iniciarScan() {
     if ('BarcodeDetector' in window) {
-      let detector;
-      try {
-        detector = new BarcodeDetector({
-          formats: ['qr_code','code_128','code_39','ean_13','ean_8','data_matrix','itf','codabar','upc_a','upc_e']
-        });
-      } catch (e) {
-        detector = new BarcodeDetector();
-      }
+      const detector = new BarcodeDetector({
+        formats: ['qr_code','code_128','code_39','ean_13','ean_8','data_matrix']
+      });
       const video = document.getElementById('cam-video');
       scanInterval = setInterval(async () => {
-        if (!video.videoWidth) return;
         try {
           const codes = await detector.detect(video);
-          if (codes && codes.length > 0) {
+          if (codes.length > 0) {
             const val = codes[0].rawValue;
             const target = camTarget;
             cerrarCamara();
             entregarValorEscaneado(target, val);
           }
-        } catch (e) { /* ignorar errores transitorios */ }
+        } catch (e) { /* ignorar */ }
       }, 300);
     } else {
       document.getElementById('cam-hint').textContent = 'BarcodeDetector no disponible en este navegador. Usa el campo de texto.';
@@ -888,6 +902,58 @@
     await dbPut(STORES.config, { key: 'branch', value: cfg.branch || 'main' });
     await dbPut(STORES.config, { key: 'token', value: cfg.token });
     state.config = { ...cfg, branch: cfg.branch || 'main' };
+  }
+
+  function updateGithubConfigUI() {
+    const ok = !!(state.config.repo && state.config.token);
+    const inp = document.getElementById('inp-excel');
+    const help = document.getElementById('excel-help');
+    const status = document.getElementById('cfg-status');
+    if (inp) inp.disabled = !ok;
+    if (help) {
+      if (ok) {
+        help.style.color = 'var(--text-dim)';
+        help.textContent = '✓ Listo. Al cargar el Excel se subira automaticamente a GitHub.';
+      } else {
+        help.style.color = 'var(--warn)';
+        help.textContent = '⚠️ Configura GitHub primero (paso 1) antes de cargar el Excel.';
+      }
+    }
+    if (status) {
+      if (ok) {
+        status.innerHTML = '<span style="color:var(--accent);">✓ Configurado</span> ' +
+                          '<span style="color:var(--text-dim);">· ' + state.config.repo + ' @ ' + (state.config.branch || 'main') + '</span>';
+      } else {
+        status.innerHTML = '<span style="color:var(--warn);">Sin configurar</span>';
+      }
+    }
+  }
+
+  async function testGithubConnection() {
+    if (!state.config.repo || !state.config.token) throw new Error('Falta repo o token');
+    if (!navigator.onLine) throw new Error('Sin conexion');
+    const url = `https://api.github.com/repos/${state.config.repo}`;
+    const resp = await fetch(url, {
+      headers: {
+        'Authorization': 'token ' + state.config.token,
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+    if (resp.status === 401) throw new Error('Token invalido (401)');
+    if (resp.status === 403) throw new Error('Token sin permisos (403)');
+    if (resp.status === 404) throw new Error('Repo no encontrado o sin acceso (404)');
+    if (!resp.ok) throw new Error('GitHub respondio ' + resp.status);
+    const j = await resp.json();
+    const canWrite = j.permissions && j.permissions.push;
+    if (!canWrite) {
+      throw new Error('Token sin permiso de escritura. Necesita Contents: Read AND WRITE');
+    }
+    return {
+      full_name: j.full_name,
+      default_branch: j.default_branch,
+      private: j.private,
+      can_write: canWrite
+    };
   }
 
   // ============================================================
@@ -938,26 +1004,59 @@
   async function refreshInventoryStatus() {
     const count = await dbCount(STORES.inventario);
     const fecha = await dbGet(STORES.config, 'inventario_fecha');
+    const ghFecha = await dbGet(STORES.config, 'inventario_global_fecha');
+
+    // Admin: estado local
     const info = document.getElementById('adm-inv-info');
     if (info) {
       if (count > 0 && fecha) {
-        info.innerHTML = `<strong>${count}</strong> registros cargados<br><span style="font-size:14px;color:var(--text-dim);">Cargado: ${fecha.value}</span>`;
+        info.innerHTML = `<strong>${count}</strong> registros<br><span style="font-size:14px;color:var(--text-dim);">Local: ${fecha.value}</span>`;
       } else {
-        info.innerHTML = '<span style="color:var(--warn);">⚠️ Sin inventario cargado</span>';
+        info.innerHTML = '<span style="color:var(--warn);">⚠️ Sin inventario local</span>';
       }
     }
-    // Aviso al operario
-    const warn = document.getElementById('op-inv-warn');
-    const msg = document.getElementById('op-inv-msg');
-    if (warn && msg) {
-      if (count > 0) {
-        warn.style.display = 'none';
+    // Admin: estado en GitHub (cache local)
+    const ghEl = document.getElementById('adm-inv-github');
+    if (ghEl) {
+      if (ghFecha && ghFecha.value) {
+        ghEl.textContent = 'Publicado: ' + ghFecha.value;
       } else {
-        warn.style.display = 'block';
-        msg.textContent = 'Sin inventario cargado. Solicita al administrador cargarlo.';
+        ghEl.textContent = '(aun no publicado a GitHub desde este dispositivo)';
       }
     }
+
+    // Operario: card en pantalla de identificacion
+    refreshOperatorInventoryInfo(count, fecha, ghFecha);
+
     return count;
+  }
+
+  function refreshOperatorInventoryInfo(count, fechaRec, ghFechaRec) {
+    const info = document.getElementById('op-inv-info');
+    const btn = document.getElementById('btn-refresh-inv');
+    const card = document.getElementById('op-inv-card');
+    if (!info) return;
+    const fecha = fechaRec && fechaRec.value;
+    const cfgOk = state.config.repo && state.config.token;
+
+    if (count > 0 && fecha) {
+      info.innerHTML = `<strong>${count}</strong> registros · ${fecha}`;
+      card.style.borderColor = 'var(--border)';
+    } else if (cfgOk) {
+      info.innerHTML = '<span style="color:var(--warn);">Sin inventario local. Presiona Actualizar.</span>';
+      card.style.borderColor = 'var(--warn)';
+    } else {
+      info.innerHTML = '<span style="color:var(--warn);">Sin inventario y GitHub no configurado.<br>Contacta al administrador.</span>';
+      card.style.borderColor = 'var(--warn)';
+    }
+
+    if (btn) {
+      btn.style.display = cfgOk ? '' : 'none';
+      btn.disabled = !navigator.onLine;
+      btn.textContent = navigator.onLine
+        ? 'Actualizar inventario desde GitHub'
+        : 'Sin conexion (no se puede actualizar)';
+    }
   }
 
   // ============================================================
@@ -1199,6 +1298,112 @@
     return await resp.json();
   }
 
+  // Lectura/escritura generica de archivos en el repo
+  async function getGitHubFile(path) {
+    const cfg = state.config;
+    if (!cfg.repo || !cfg.token) throw new Error('GitHub no configurado');
+    const url = `https://api.github.com/repos/${cfg.repo}/contents/${path}?ref=${encodeURIComponent(cfg.branch || 'main')}&_=${Date.now()}`;
+    const resp = await fetch(url, {
+      headers: {
+        'Authorization': 'token ' + cfg.token,
+        'Accept': 'application/vnd.github+json',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    if (resp.status === 404) return null;
+    if (!resp.ok) {
+      let detail = '';
+      try { const j = await resp.json(); detail = j.message || ''; } catch(e){}
+      throw new Error('GitHub GET ' + resp.status + (detail ? ': ' + detail : ''));
+    }
+    const j = await resp.json();
+    return { sha: j.sha, content: b64decodeUtf8(j.content || '') };
+  }
+
+  async function putGitHubFile(path, contentText, sha, message) {
+    const cfg = state.config;
+    if (!cfg.repo || !cfg.token) throw new Error('GitHub no configurado');
+    if (!navigator.onLine) throw new Error('Sin conexion');
+    const url = `https://api.github.com/repos/${cfg.repo}/contents/${path}`;
+    const body = {
+      message: message || ('upd: ' + path),
+      content: b64encodeUtf8(contentText),
+      branch: cfg.branch || 'main'
+    };
+    if (sha) body.sha = sha;
+    const resp = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'token ' + cfg.token,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok) {
+      let detail = '';
+      try { const j = await resp.json(); detail = j.message || ''; } catch(e){}
+      throw new Error('GitHub PUT ' + resp.status + (detail ? ': ' + detail : ''));
+    }
+    return await resp.json();
+  }
+
+  // Publicar inventario local → GitHub (inventario/actual.json)
+  async function pushInventoryToGitHub() {
+    const items = await dbGetAll(STORES.inventario);
+    if (!items.length) throw new Error('No hay inventario local para publicar');
+    const payload = {
+      updated_at: tsISO(new Date()),
+      count: items.length,
+      items: items
+    };
+    const content = JSON.stringify(payload, null, 2);
+    if (content.length > 900000) {
+      throw new Error('Inventario muy grande (' + Math.round(content.length/1024) + ' KB). Limite Contents API ~1MB');
+    }
+    let sha = null;
+    try {
+      const existing = await getGitHubFile('inventario/actual.json');
+      if (existing) sha = existing.sha;
+    } catch (e) { /* si falla GET, intentamos PUT sin sha */ }
+    await putGitHubFile(
+      'inventario/actual.json',
+      content,
+      sha,
+      'inv: actualiza inventario (' + items.length + ' rollos)'
+    );
+    await dbPut(STORES.config, { key: 'inventario_global_fecha', value: payload.updated_at });
+    return payload;
+  }
+
+  // Descargar inventario global → IndexedDB
+  async function pullInventoryFromGitHub() {
+    const file = await getGitHubFile('inventario/actual.json');
+    if (!file) throw new Error('No hay inventario publicado en GitHub');
+    let data;
+    try { data = JSON.parse(file.content); }
+    catch (e) { throw new Error('Inventario en GitHub esta corrupto'); }
+    if (!data || !Array.isArray(data.items)) throw new Error('Formato de inventario invalido');
+    await dbClear(STORES.inventario);
+    for (const it of data.items) {
+      if (it && it.lote) await dbPut(STORES.inventario, it);
+    }
+    await dbPut(STORES.config, { key: 'inventario_fecha', value: data.updated_at });
+    await dbPut(STORES.config, { key: 'inventario_count', value: data.items.length });
+    await dbPut(STORES.config, { key: 'inventario_global_fecha', value: data.updated_at });
+    return data;
+  }
+
+  // Devuelve fecha publicada en GitHub (sin descargar todo el archivo si ya esta al dia)
+  async function getGithubInventoryDate() {
+    try {
+      const file = await getGitHubFile('inventario/actual.json');
+      if (!file) return null;
+      const data = JSON.parse(file.content);
+      return { updated_at: data.updated_at, count: data.count, _raw: data };
+    } catch (e) { return null; }
+  }
+
   async function syncCurrentSession() {
     if (!state.sesion) { flash('No hay sesion activa', 'err'); return; }
     if (!state.config.repo || !state.config.token) {
@@ -1280,6 +1485,7 @@
     document.getElementById('cfg-repo').value = state.config.repo || '';
     document.getElementById('cfg-branch').value = state.config.branch || 'main';
     document.getElementById('cfg-token').value = state.config.token || '';
+    updateGithubConfigUI();
     await refreshInventoryStatus();
     await refreshPendingCount();
     renderAdminSessionCard();
@@ -1307,6 +1513,33 @@
     await loadConfig();
     await loadSesionActual();
     await refreshInventoryStatus();
+
+    // Auto-pull inventario desde GitHub al iniciar (no bloqueante)
+    if (state.config.repo && state.config.token && navigator.onLine) {
+      (async () => {
+        try {
+          const ghMeta = await getGithubInventoryDate();
+          if (!ghMeta) return;
+          const localFecha = await dbGet(STORES.config, 'inventario_fecha');
+          const localStr = localFecha ? localFecha.value : '';
+          const localCount = await dbCount(STORES.inventario);
+          if (localCount === 0 || ghMeta.updated_at !== localStr) {
+            const data = ghMeta._raw;
+            await dbClear(STORES.inventario);
+            for (const it of data.items) {
+              if (it && it.lote) await dbPut(STORES.inventario, it);
+            }
+            await dbPut(STORES.config, { key: 'inventario_fecha', value: data.updated_at });
+            await dbPut(STORES.config, { key: 'inventario_count', value: data.items.length });
+            await dbPut(STORES.config, { key: 'inventario_global_fecha', value: data.updated_at });
+            flash('Inventario actualizado desde GitHub: ' + data.items.length + ' rollos', 'ok');
+            await refreshInventoryStatus();
+          }
+        } catch (e) {
+          // silencioso: si falla, queda con lo local
+        }
+      })();
+    }
 
     // Deteccion de camara
     state.hasCamera = await detectCamera();
@@ -1342,6 +1575,26 @@
       if (e.target.id === 'modal-admin-login') closeAdminLogin();
     });
 
+    // ---- Identificacion: boton Actualizar inventario ----
+    document.getElementById('btn-refresh-inv').addEventListener('click', async () => {
+      if (!state.config.repo || !state.config.token) {
+        flash('GitHub no configurado. Contacta al administrador.', 'err');
+        return;
+      }
+      if (!navigator.onLine) { flash('Sin conexion', 'err'); return; }
+      const btn = document.getElementById('btn-refresh-inv');
+      btn.disabled = true;
+      btn.textContent = 'Descargando...';
+      try {
+        const d = await pullInventoryFromGitHub();
+        flash(`✓ Inventario actualizado: ${d.items.length} rollos`, 'ok');
+      } catch (err) {
+        flash('Error: ' + err.message, 'err');
+      } finally {
+        await refreshInventoryStatus();
+      }
+    });
+
     // ---- Identificacion ----
     document.getElementById('btn-iniciar').addEventListener('click', async () => {
       const nom = document.getElementById('inp-operario').value.trim();
@@ -1368,12 +1621,53 @@
       try {
         flash('Procesando Excel...', '');
         const n = await parseExcel(file);
-        flash(`Inventario cargado: ${n} registros`, 'ok');
+        flash(`Inventario local: ${n} registros`, 'ok');
         await refreshInventoryStatus();
+        // Auto-publicar a GitHub si esta configurado y online
+        if (state.config.repo && state.config.token && navigator.onLine) {
+          try {
+            flash('Publicando a GitHub...', '');
+            const r = await pushInventoryToGitHub();
+            flash(`✓ Publicado a GitHub (${r.count} rollos)`, 'ok');
+            await refreshInventoryStatus();
+          } catch (err) {
+            flash('Local OK pero falla GitHub: ' + err.message, 'err');
+          }
+        } else if (!state.config.repo || !state.config.token) {
+          flash('Local OK. Configura GitHub para publicar.', '');
+        } else {
+          flash('Local OK. Sin conexion, no publicado.', '');
+        }
       } catch (err) {
         flash('Error al leer Excel: ' + err.message, 'err');
       } finally {
         e.target.value = '';
+      }
+    });
+
+    // Botones admin: pull/push inventario manual
+    document.getElementById('adm-btn-pull-inv').addEventListener('click', async () => {
+      if (!state.config.repo || !state.config.token) { flash('Configura GitHub primero', 'err'); return; }
+      if (!navigator.onLine) { flash('Sin conexion', 'err'); return; }
+      try {
+        flash('Descargando inventario...', '');
+        const d = await pullInventoryFromGitHub();
+        flash(`✓ Bajado: ${d.items.length} rollos`, 'ok');
+        await refreshInventoryStatus();
+      } catch (err) {
+        flash('Error: ' + err.message, 'err');
+      }
+    });
+    document.getElementById('adm-btn-push-inv').addEventListener('click', async () => {
+      if (!state.config.repo || !state.config.token) { flash('Configura GitHub primero', 'err'); return; }
+      if (!navigator.onLine) { flash('Sin conexion', 'err'); return; }
+      try {
+        flash('Publicando inventario...', '');
+        const r = await pushInventoryToGitHub();
+        flash(`✓ Publicado: ${r.count} rollos`, 'ok');
+        await refreshInventoryStatus();
+      } catch (err) {
+        flash('Error: ' + err.message, 'err');
       }
     });
     document.getElementById('cfg-save').addEventListener('click', async () => {
@@ -1383,7 +1677,28 @@
       if (!repo || !token) { flash('Repo y token requeridos', 'err'); return; }
       if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { flash('Formato repo: usuario/repo', 'err'); return; }
       await saveConfig({ repo, branch, token });
+      updateGithubConfigUI();
       flash('Configuracion guardada', 'ok');
+    });
+    document.getElementById('cfg-test').addEventListener('click', async () => {
+      const repo = document.getElementById('cfg-repo').value.trim();
+      const branch = document.getElementById('cfg-branch').value.trim() || 'main';
+      const token = document.getElementById('cfg-token').value.trim();
+      if (!repo || !token) { flash('Llena repo y token antes de probar', 'err'); return; }
+      const prev = { ...state.config };
+      state.config = { repo, branch, token };
+      const status = document.getElementById('cfg-status');
+      status.innerHTML = '<span style="color:var(--warn);">Probando...</span>';
+      try {
+        const info = await testGithubConnection();
+        status.innerHTML = '<span style="color:var(--accent);">✓ OK: ' + info.full_name +
+                           (info.private ? ' (privado)' : ' (publico)') + '</span>';
+        flash('Conexion OK con ' + info.full_name, 'ok');
+      } catch (e) {
+        status.innerHTML = '<span style="color:var(--error);">✗ ' + e.message + '</span>';
+        state.config = prev;
+        flash('Fallo: ' + e.message, 'err');
+      }
     });
     document.getElementById('cfg-clear').addEventListener('click', async () => {
       if (!confirm('¿Borrar configuracion de GitHub?')) return;
@@ -1394,6 +1709,7 @@
       document.getElementById('cfg-repo').value = '';
       document.getElementById('cfg-branch').value = 'main';
       document.getElementById('cfg-token').value = '';
+      updateGithubConfigUI();
       flash('Configuracion borrada', 'ok');
     });
     document.getElementById('adm-btn-sync-pending').addEventListener('click', syncAllPending);
