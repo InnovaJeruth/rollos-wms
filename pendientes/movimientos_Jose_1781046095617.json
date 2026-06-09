@@ -1,0 +1,11 @@
+{
+  "id": "4a688295-d2bb-4651-bb02-d0971bd8277a",
+  "operario": "Jose",
+  "fecha": "2026-06-09",
+  "hora_inicio": "17:59:15",
+  "hora_fin": "18:01:20",
+  "dispositivo": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36",
+  "total_movimientos": 0,
+  "total_discrepancias": 0,
+  "movimientos": []
+}
