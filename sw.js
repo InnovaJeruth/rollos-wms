@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'wms-rollos-v1.0.0';
+const CACHE_VERSION = 'wms-rollos-v1.0.1';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -39,13 +39,10 @@ self.addEventListener('fetch', (event) => {
 
   if (req.method !== 'GET') return;
 
-  if (url.hostname === 'api.github.com') {
-    event.respondWith(fetch(req).catch(() => new Response(
-      JSON.stringify({ error: 'offline' }),
-      { status: 503, headers: { 'Content-Type': 'application/json' } }
-    )));
-    return;
-  }
+  // Dejar pasar las llamadas a la API de GitHub sin interceptar — que el
+  // browser maneje CORS, errores y autenticacion directamente, asi los
+  // errores reales se ven en la consola en vez de un 503 generico.
+  if (url.hostname === 'api.github.com') return;
 
   if (req.mode === 'navigate') {
     event.respondWith(

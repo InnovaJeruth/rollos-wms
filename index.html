@@ -1306,8 +1306,7 @@
     const resp = await fetch(url, {
       headers: {
         'Authorization': 'token ' + cfg.token,
-        'Accept': 'application/vnd.github+json',
-        'Cache-Control': 'no-cache'
+        'Accept': 'application/vnd.github+json'
       }
     });
     if (resp.status === 404) return null;
