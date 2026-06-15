@@ -1,0 +1,33 @@
+{
+  "schema": "ejecutable_v1",
+  "id": "9d0436cf-9391-4938-97fb-c1f305a5c253",
+  "operario": "juan",
+  "fecha": "2026-06-15",
+  "hora_inicio": "15:46:43",
+  "hora_fin": "15:48:07",
+  "total": 2,
+  "movimientos": [
+    {
+      "accion": "regularizacion",
+      "lote": "FL0256063",
+      "producto": "1000015088068",
+      "bin_origen": "A001-01-01-02",
+      "bin_destino": "A001-01-01-01",
+      "cantidad": "79",
+      "unidad": "M",
+      "batch_id": "6m67ml",
+      "timestamp": "2026-06-15T15:48:04"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "E6907160",
+      "producto": "1000015172003",
+      "bin_origen": "A001-01-01-02",
+      "bin_destino": "A001-01-01-01",
+      "cantidad": "120",
+      "unidad": "M",
+      "batch_id": "6m67ml",
+      "timestamp": "2026-06-15T15:48:04"
+    }
+  ]
+}
