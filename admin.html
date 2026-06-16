@@ -765,14 +765,10 @@
   document.addEventListener('DOMContentLoaded', async () => {
     refreshNet();
 
-    // Login persistente en sessionStorage
-    if (sessionStorage.getItem('wms_admin_logged') === '1') {
-      state.isLogged = true;
-      await afterLogin();
-    } else {
-      show('screen-login');
-      setTimeout(() => { try { document.getElementById('login-user').focus(); } catch (e) {} }, 80);
-    }
+    // Siempre pedir contraseña al entrar (no persistir sesion entre navegaciones)
+    sessionStorage.removeItem('wms_admin_logged');
+    show('screen-login');
+    setTimeout(() => { try { document.getElementById('login-user').focus(); } catch (e) {} }, 80);
 
     // Login
     document.getElementById('btn-login').addEventListener('click', tryLogin);

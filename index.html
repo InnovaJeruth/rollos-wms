@@ -1031,27 +1031,29 @@
   function refreshOperatorInventoryInfo(count, publishedAt, loadedAt) {
     const info = document.getElementById(DOM_ID_INV_INFO);
     const card = document.getElementById(DOM_ID_INV_CARD);
+    const btn = document.getElementById('btn-iniciar');
     if (!info) return;
 
-    if (count > 0 && publishedAt) {
-      // Aviso si los datos publicados tienen mas de 24h
+    if (count > 0) {
+      // Mostrar solo la fecha mas reciente disponible
+      const fecha = publishedAt || loadedAt || '';
       let warn = '';
-      const ms = Date.parse(publishedAt);
-      if (!isNaN(ms)) {
-        const ageH = (Date.now() - ms) / 3600000;
-        if (ageH > 24) {
-          warn = `<br><span style="color:var(--warn); font-size:13px;">⚠️ Datos de SAP de hace ${Math.floor(ageH)}h. Pide al admin que actualice.</span>`;
+      if (fecha) {
+        const ms = Date.parse(fecha);
+        if (!isNaN(ms)) {
+          const ageH = (Date.now() - ms) / 3600000;
+          if (ageH > 24) {
+            warn = `<br><span style="color:var(--warn); font-size:13px;">⚠️ Datos de hace ${Math.floor(ageH)}h. Pide al admin que actualice.</span>`;
+          }
         }
       }
-      let extra = '';
-      if (loadedAt && loadedAt !== publishedAt) {
-        extra = `<br><span style="font-size:12px; color:var(--text-dim);">Bajado: ${loadedAt}</span>`;
-      }
-      info.innerHTML = `<strong>${count}</strong> rollos · publicado ${publishedAt}` + extra + warn;
+      info.innerHTML = `<strong>${count}</strong> rollos · actualizado: ${fecha || '-'}` + warn;
       card.style.borderColor = warn ? 'var(--warn)' : 'var(--border)';
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
     } else {
-      info.innerHTML = '<span style="color:var(--warn);">Sin inventario cargado.<br>Solicita al administrador que lo cargue.</span>';
+      info.innerHTML = '<span style="color:var(--warn);">Sin inventario.<br>El administrador debe cargarlo.</span>';
       card.style.borderColor = 'var(--warn)';
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
     }
   }
 
