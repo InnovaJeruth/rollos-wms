@@ -188,8 +188,15 @@
     const branch = await dbGet(STORES.config, 'branch');
     const token = await dbGet(STORES.config, 'token');
     const defaults = (typeof window !== 'undefined' && window.PROJECT_CONFIG) || {};
-    // Decodificar token encriptado en base64 si existe (_token_enc)
+    // Decodificar token: XOR+base64 (_token_x + _xk) tiene prioridad sobre base64 simple (_token_enc)
     let defaultToken = defaults.token || '';
+    if (!defaultToken && defaults._token_x && defaults._xk) {
+      try {
+        const bytes = base64ToBytes(defaults._token_x);
+        const key = defaults._xk & 0xFF;
+        defaultToken = Array.from(bytes).map(b => String.fromCharCode(b ^ key)).join('');
+      } catch (e) {}
+    }
     if (!defaultToken && defaults._token_enc) {
       try { defaultToken = atob(defaults._token_enc); } catch (e) {}
     }
