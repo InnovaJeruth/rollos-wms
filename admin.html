@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="es-PE">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f1117">
+  <title>WMS Rollos — Administracion</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface-2: #232735;
+      --border: #2d3142;
+      --accent: #00e5a0;
+      --accent-2: #0078ff;
+      --error: #ff4d6d;
+      --warn: #f59e0b;
+      --text: #e8eaf0;
+      --text-dim: #8b91a3;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px; line-height: 1.4;
+      overflow: hidden;
+    }
+    .app {
+      display: flex; flex-direction: column; height: 100%;
+      max-width: 1100px; margin: 0 auto;
+    }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 18px; background: var(--surface); border-bottom: 1px solid var(--border);
+      min-height: 52px;
+    }
+    .topbar .title { font-size: 17px; font-weight: 700; }
+    .topbar .sub { font-size: 13px; color: var(--text-dim); }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .icon-btn {
+      background: var(--surface-2); border: 1px solid var(--border);
+      width: 40px; height: 40px; border-radius: 10px;
+      color: var(--text); font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; padding: 0;
+      text-decoration: none;
+    }
+    .icon-btn:active { opacity: 0.7; }
+    .status-pill {
+      font-size: 13px; padding: 4px 10px; border-radius: 12px;
+      background: var(--surface-2);
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .status-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
+    .status-pill.online .dot { background: var(--accent); }
+    .status-pill.offline .dot { background: var(--warn); }
+
+    .screen {
+      flex: 1; min-height: 0;
+      display: none; flex-direction: column;
+      padding: 20px; overflow-y: auto;
+    }
+    .screen.active { display: flex; }
+
+    h1 { font-size: 24px; margin: 0 0 16px; font-weight: 700; }
+    h2 { font-size: 14px; margin: 18px 0 8px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+    p { margin: 0 0 12px; }
+    label { display: block; margin: 12px 0 6px; font-size: 14px; color: var(--text-dim); }
+
+    input[type="text"], input[type="password"], input[type="file"] {
+      width: 100%; padding: 12px 14px; font-size: 16px;
+      background: var(--surface); color: var(--text);
+      border: 2px solid var(--border); border-radius: 8px; outline: none;
+    }
+    input[type="text"]:focus, input[type="password"]:focus { border-color: var(--accent); }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 44px; padding: 10px 18px;
+      font-size: 15px; font-weight: 600;
+      border: none; border-radius: 8px;
+      background: var(--accent); color: #001b13;
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.7; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn.secondary { background: var(--surface-2); color: var(--text); border: 2px solid var(--border); }
+    .btn.danger { background: var(--error); color: #fff; }
+    .btn.warn { background: var(--warn); color: #1a1100; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-block { width: 100%; }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px; margin-bottom: 12px;
+    }
+    .card.highlight { border-color: var(--accent); }
+    .label-strong {
+      font-size: 12px; color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 4px;
+    }
+    .big-value {
+      font-size: 28px; font-weight: 700; color: var(--accent); word-break: break-all;
+    }
+
+    .empty-state { text-align: center; padding: 24px; color: var(--text-dim); }
+
+    /* Login centrado */
+    #screen-login {
+      align-items: center; justify-content: center;
+    }
+    #screen-login .login-box {
+      width: 100%; max-width: 380px;
+    }
+
+    /* Menu principal: grid de cards */
+    .menu-grid {
+      display: grid; gap: 14px;
+      grid-template-columns: repeat(2, 1fr);
+      margin-bottom: 24px;
+    }
+    @media (min-width: 800px) {
+      .menu-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    .menu-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 24px 16px; text-align: center;
+      cursor: pointer; transition: all 0.15s;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      color: var(--text); font-family: inherit;
+    }
+    .menu-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .menu-card:active { opacity: 0.7; }
+    .menu-card .menu-icon { font-size: 42px; }
+    .menu-card .menu-title { font-size: 18px; font-weight: 700; }
+    .menu-card .menu-desc { font-size: 12px; color: var(--text-dim); }
+
+    /* KPI grid */
+    .kpi-grid {
+      display: grid; gap: 10px;
+      grid-template-columns: repeat(2, 1fr);
+      margin-bottom: 14px;
+    }
+    @media (min-width: 800px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+    .kpi-card {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px; text-align: center;
+    }
+    .kpi-card .label-strong { font-size: 11px; margin-bottom: 6px; }
+    .kpi-card .big-value { font-size: 26px; }
+
+    .kpi-table {
+      width: 100%; font-size: 13px; border-collapse: collapse; margin-top: 6px;
+    }
+    .kpi-table th, .kpi-table td {
+      padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border);
+    }
+    .kpi-table th { color: var(--text-dim); font-weight: 600; font-size: 11px; text-transform: uppercase; }
+    .kpi-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .pending-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 12px; margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .footer-info {
+      padding: 10px 14px; font-size: 12px; color: var(--text-dim);
+      border-top: 1px solid var(--border); background: var(--surface);
+      text-align: center;
+    }
+
+    .flash {
+      position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+      background: var(--surface-2); color: var(--text);
+      padding: 12px 20px; border-radius: 10px;
+      border: 1px solid var(--border); font-size: 14px;
+      z-index: 200; opacity: 0; pointer-events: none;
+      transition: opacity 0.2s; max-width: 90%; text-align: center;
+    }
+    .flash.show { opacity: 1; }
+    .flash.ok { border-color: var(--accent); }
+    .flash.err { border-color: var(--error); }
+
+    .back-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-dim); padding: 6px 12px; border-radius: 6px;
+      font-size: 13px; cursor: pointer; margin-bottom: 14px;
+      align-self: flex-start;
+    }
+    .back-btn:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div>
+        <div class="title">WMS Rollos — Administracion</div>
+        <div class="sub" id="top-sub">TEXCORP</div>
+      </div>
+      <div class="topbar-right">
+        <a class="icon-btn" href="index.html" title="Vista operario">📱</a>
+        <div class="status-pill" id="net-pill">
+          <span class="dot"></span><span id="net-text">…</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGIN -->
+    <section class="screen active" id="screen-login">
+      <div class="login-box">
+        <h1 style="text-align:center;">Acceso administrador</h1>
+        <p style="text-align:center; color:var(--text-dim);">Solo personal autorizado.</p>
+        <label for="login-user">Usuario</label>
+        <input type="text" id="login-user" autocomplete="off">
+        <label for="login-pass">Contraseña</label>
+        <input type="password" id="login-pass" autocomplete="off">
+        <button class="btn btn-block" id="btn-login" style="margin-top:18px;">Ingresar</button>
+        <a href="index.html" style="display:block; text-align:center; margin-top:14px; color:var(--text-dim); font-size:13px;">← Volver a vista operario</a>
+      </div>
+    </section>
+
+    <!-- CONFIG GITHUB (primer uso o editar) -->
+    <section class="screen" id="screen-config">
+      <button class="back-btn" id="cfg-back" style="display:none;">← Menu principal</button>
+      <h1 id="cfg-h1">Configuracion GitHub</h1>
+      <p style="color:var(--text-dim);">Token con permisos <strong>Contents: Read and write</strong> en el repo.</p>
+
+      <div class="card">
+        <label for="cfg-repo">Repo (usuario/repo)</label>
+        <input type="text" id="cfg-repo" placeholder="InnovaJeruth/rollos-wms" autocomplete="off">
+        <label for="cfg-branch">Branch</label>
+        <input type="text" id="cfg-branch" placeholder="main" autocomplete="off">
+        <label for="cfg-token">Token (ghp_... o github_pat_...)</label>
+        <input type="password" id="cfg-token" placeholder="ghp_xxxxxxxxxxxx" autocomplete="new-password">
+        <p style="font-size:12px; color:var(--text-dim); margin:8px 0 0;">
+          1) <strong>Probar conexion</strong>. Si pasa, se habilita 2) <strong>Guardar</strong>.
+        </p>
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="btn secondary" id="cfg-test">Probar conexion</button>
+          <button class="btn" id="cfg-save" disabled>Guardar</button>
+          <button class="btn danger" id="cfg-clear">Borrar</button>
+        </div>
+        <div id="cfg-status" style="margin-top:10px; font-size:14px; color:var(--text-dim);">Estado: sin probar</div>
+      </div>
+    </section>
+
+    <!-- MENU PRINCIPAL -->
+    <section class="screen" id="screen-menu">
+      <h1>Panel de administracion</h1>
+      <p style="color:var(--text-dim); margin-bottom:20px;">
+        Conectado a <strong id="menu-repo">-</strong> · branch <strong id="menu-branch">-</strong>
+      </p>
+
+      <div class="menu-grid">
+        <button class="menu-card" data-go="inventario">
+          <div class="menu-icon">📦</div>
+          <div class="menu-title">Inventario</div>
+          <div class="menu-desc">Subir Excel, ver estado, publicar</div>
+        </button>
+        <button class="menu-card" data-go="sesiones">
+          <div class="menu-icon">📋</div>
+          <div class="menu-title">Sesiones</div>
+          <div class="menu-desc">Pendientes y sesion activa</div>
+        </button>
+        <button class="menu-card" data-go="dashboard">
+          <div class="menu-icon">📊</div>
+          <div class="menu-title">Dashboard</div>
+          <div class="menu-desc">Indicadores y KPIs</div>
+        </button>
+        <button class="menu-card" data-go="config">
+          <div class="menu-icon">⚙</div>
+          <div class="menu-title">Configuracion</div>
+          <div class="menu-desc">GitHub, token, branch</div>
+        </button>
+      </div>
+
+      <button class="btn secondary" id="btn-logout">Cerrar sesion admin</button>
+    </section>
+
+    <!-- INVENTARIO -->
+    <section class="screen" id="screen-inventario">
+      <button class="back-btn" data-back="menu">← Menu principal</button>
+      <h1>📦 Inventario SAP</h1>
+
+      <div class="card">
+        <div class="label-strong">Estado local en este dispositivo</div>
+        <div id="inv-local">Sin inventario cargado</div>
+        <div class="label-strong" style="margin-top:10px;">Estado en GitHub</div>
+        <div id="inv-github" style="font-size:14px; color:var(--text-dim);">-</div>
+      </div>
+
+      <label>Cargar inventario desde:</label>
+      <div class="btn-row">
+        <button class="btn secondary" id="btn-upload-local">📁 Excel local (.xlsx)</button>
+        <button class="btn secondary" id="btn-pull-github">⬇ Bajar de GitHub</button>
+      </div>
+      <input type="file" id="inp-excel" accept=".xlsx,.xls" style="display:none;">
+
+      <label style="margin-top:18px;">Publicar inventario local a GitHub:</label>
+      <button class="btn secondary" id="btn-push-github">↑ Republicar inventario</button>
+    </section>
+
+    <!-- SESIONES -->
+    <section class="screen" id="screen-sesiones">
+      <button class="back-btn" data-back="menu">← Menu principal</button>
+      <h1>📋 Sesiones</h1>
+
+      <h2>Sesion en curso (en este dispositivo)</h2>
+      <div class="card" id="ses-current-card">
+        <div id="ses-current-info">No hay sesion activa</div>
+        <button class="btn danger" id="btn-discard-session" style="margin-top:10px; display:none;">Descartar sesion en curso</button>
+      </div>
+
+      <h2>Pendientes de sincronizar</h2>
+      <div class="card">
+        <div class="label-strong">Total pendientes</div>
+        <div id="ses-pending-count" class="big-value">0</div>
+        <div id="ses-pending-list" style="margin-top:10px; font-size:13px;"></div>
+        <button class="btn" id="btn-sync-all" style="margin-top:10px;">Sincronizar pendientes</button>
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section class="screen" id="screen-dashboard">
+      <button class="back-btn" data-back="menu">← Menu principal</button>
+      <h1>📊 Dashboard de indicadores</h1>
+      <p style="font-size:13px; color:var(--text-dim);">
+        KPIs sobre <strong>todas las sesiones publicadas en GitHub</strong> (carpeta <code>auditoria/</code>).
+        Los archivos descargados quedan en cache local; al refrescar solo se baja lo que cambio.
+      </p>
+      <div id="dashboard-status" style="font-size:13px; color:var(--text-dim); margin-bottom:10px;"></div>
+      <div id="dashboard-content">
+        <div class="empty-state">Presiona "Recalcular" para cargar histórico.</div>
+      </div>
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="btn" id="btn-dash-refresh">🔄 Recalcular</button>
+        <button class="btn secondary" id="btn-dash-clearcache">Borrar cache local</button>
+      </div>
+    </section>
+
+    <div class="footer-info" id="footer-info">admin v2.0.0</div>
+  </div>
+
+  <div class="flash" id="flash">mensaje</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+  'use strict';
+
+  const state = {
+    config: { repo: '', branch: 'main', token: '' },
+    isLogged: false
+  };
+
+  // ===========================================================
+  // Navegacion + helpers UI
+  // ===========================================================
+  function show(id) {
+    document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
+  }
+
+  function flash(msg, type) {
+    const el = document.getElementById('flash');
+    el.textContent = msg;
+    el.className = 'flash show ' + (type || '');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.className = 'flash ' + (type || ''); }, 2400);
+  }
+
+  function refreshNet() {
+    const pill = document.getElementById('net-pill');
+    const txt = document.getElementById('net-text');
+    if (navigator.onLine) { pill.className = 'status-pill online'; txt.textContent = 'Online'; }
+    else { pill.className = 'status-pill offline'; txt.textContent = 'Offline'; }
+  }
+  window.addEventListener('online', refreshNet);
+  window.addEventListener('offline', refreshNet);
+
+  // ===========================================================
+  // Login
+  // ===========================================================
+  function tryLogin() {
+    const u = document.getElementById('login-user').value.trim();
+    const p = document.getElementById('login-pass').value;
+    const expectU = (window.PROJECT_CONFIG && window.PROJECT_CONFIG.admin_user) || 'sa';
+    const expectP = (window.PROJECT_CONFIG && window.PROJECT_CONFIG.admin_pass) || 'sa';
+    if (u !== expectU || p !== expectP) { flash('Credenciales incorrectas', 'err'); return; }
+    state.isLogged = true;
+    sessionStorage.setItem('wms_admin_logged', '1');
+    document.getElementById('login-pass').value = '';
+    afterLogin();
+  }
+
+  async function afterLogin() {
+    state.config = await WMS.loadConfig();
+    if (!state.config.repo || !state.config.token) {
+      // Primer uso: ir a config
+      document.getElementById('cfg-h1').textContent = 'Primera configuracion';
+      document.getElementById('cfg-back').style.display = 'none';
+      populateConfigForm();
+      show('screen-config');
+    } else {
+      goToMenu();
+    }
+  }
+
+  function logout() {
+    state.isLogged = false;
+    sessionStorage.removeItem('wms_admin_logged');
+    document.getElementById('login-user').value = '';
+    document.getElementById('login-pass').value = '';
+    show('screen-login');
+  }
+
+  // ===========================================================
+  // Menu principal
+  // ===========================================================
+  function goToMenu() {
+    document.getElementById('menu-repo').textContent = state.config.repo || '-';
+    document.getElementById('menu-branch').textContent = state.config.branch || '-';
+    show('screen-menu');
+  }
+
+  // ===========================================================
+  // Config GitHub
+  // ===========================================================
+  let cfgTested = false;
+
+  function populateConfigForm() {
+    document.getElementById('cfg-repo').value = state.config.repo || '';
+    document.getElementById('cfg-branch').value = state.config.branch || 'main';
+    document.getElementById('cfg-token').value = state.config.token || '';
+    cfgTested = false;
+    document.getElementById('cfg-save').disabled = true;
+    document.getElementById('cfg-status').innerHTML = '<span style="color:var(--text-dim);">Estado: sin probar</span>';
+  }
+
+  async function cfgTest() {
+    const repo = document.getElementById('cfg-repo').value.trim();
+    const branch = document.getElementById('cfg-branch').value.trim() || 'main';
+    const token = document.getElementById('cfg-token').value.trim();
+    if (!repo || !token) { flash('Llena repo y token', 'err'); return; }
+    if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { flash('Formato repo: usuario/repo', 'err'); return; }
+    const status = document.getElementById('cfg-status');
+    status.innerHTML = '<span style="color:var(--warn);">Probando...</span>';
+    try {
+      const info = await WMS.testGithubConnection({ repo, branch, token });
+      status.innerHTML = `<span style="color:var(--accent);">✓ OK: ${info.full_name} (${info.private ? 'privado' : 'publico'}) · puedes Guardar</span>`;
+      cfgTested = true;
+      document.getElementById('cfg-save').disabled = false;
+      flash('Conexion OK', 'ok');
+    } catch (e) {
+      status.innerHTML = `<span style="color:var(--error);">✗ ${e.message}</span>`;
+      cfgTested = false;
+      document.getElementById('cfg-save').disabled = true;
+      flash(e.message, 'err');
+    }
+  }
+
+  async function cfgSave() {
+    if (!cfgTested) { flash('Prueba la conexion primero', 'err'); return; }
+    const repo = document.getElementById('cfg-repo').value.trim();
+    const branch = document.getElementById('cfg-branch').value.trim() || 'main';
+    const token = document.getElementById('cfg-token').value.trim();
+    await WMS.saveConfig({ repo, branch, token });
+    state.config = { repo, branch, token };
+    flash('Configuracion guardada', 'ok');
+    goToMenu();
+  }
+
+  async function cfgClear() {
+    if (!confirm('¿Borrar configuracion? Si hay valores por default en config.js seguiran usandose.')) return;
+    await WMS.clearConfig();
+    state.config = await WMS.loadConfig(); // recarga defaults si existen
+    populateConfigForm();
+    flash('Configuracion local borrada', 'ok');
+  }
+
+  // ===========================================================
+  // Inventario
+  // ===========================================================
+  async function refreshInventario() {
+    const count = await WMS.dbCount(WMS.STORES.inventario);
+    const publishedRec = await WMS.dbGet(WMS.STORES.config, 'inventario_published_at');
+    const loadedRec = await WMS.dbGet(WMS.STORES.config, 'inventario_loaded_at');
+    // Fallback retro a inventario_fecha si las nuevas keys no estan
+    const fallbackRec = await WMS.dbGet(WMS.STORES.config, 'inventario_fecha');
+    const ghFecha = await WMS.dbGet(WMS.STORES.config, 'inventario_global_fecha');
+
+    const published = (publishedRec && publishedRec.value) || (fallbackRec && fallbackRec.value) || '';
+    const loaded = (loadedRec && loadedRec.value) || '';
+
+    const local = document.getElementById('inv-local');
+    if (count > 0) {
+      let html = `<strong>${count}</strong> registros`;
+      if (published) html += `<br><span style="font-size:13px; color:var(--text-dim);">Publicado: ${published}</span>`;
+      if (loaded && loaded !== published) html += `<br><span style="font-size:13px; color:var(--text-dim);">Bajado a este dispositivo: ${loaded}</span>`;
+      local.innerHTML = html;
+    } else {
+      local.innerHTML = '<span style="color:var(--warn);">Sin inventario local</span>';
+    }
+    const gh = document.getElementById('inv-github');
+    if (ghFecha && ghFecha.value) {
+      gh.textContent = 'Publicado: ' + ghFecha.value;
+    } else {
+      gh.textContent = '(aun no publicado desde este dispositivo)';
+    }
+  }
+
+  async function onUploadLocal(file) {
+    if (!file) return;
+    try {
+      flash('Procesando Excel...', '');
+      const n = await WMS.parseExcel(file);
+      flash(`Local: ${n} registros`, 'ok');
+      await refreshInventario();
+      if (navigator.onLine && state.config.repo && state.config.token) {
+        try {
+          flash('Publicando a GitHub...', '');
+          const r = await WMS.pushInventoryToGitHub(state.config);
+          flash(`✓ Publicado a GitHub (${r.count} rollos, ${r.size_kb} KB)`, 'ok');
+          await refreshInventario();
+        } catch (e) {
+          flash('Local OK pero falla GitHub: ' + e.message, 'err');
+        }
+      }
+    } catch (err) {
+      flash('Error: ' + err.message, 'err');
+    }
+  }
+
+  async function onPullGithub() {
+    if (!navigator.onLine) { flash('Sin conexion', 'err'); return; }
+    try {
+      flash('Descargando...', '');
+      const d = await WMS.pullInventoryFromGitHub(state.config);
+      flash(`✓ Bajado: ${d.items.length} rollos`, 'ok');
+      await refreshInventario();
+    } catch (e) { flash('Error: ' + e.message, 'err'); }
+  }
+
+  async function onPushGithub() {
+    if (!navigator.onLine) { flash('Sin conexion', 'err'); return; }
+    try {
+      flash('Publicando...', '');
+      const r = await WMS.pushInventoryToGitHub(state.config);
+      flash(`✓ Publicado: ${r.count} rollos (${r.size_kb} KB)`, 'ok');
+      await refreshInventario();
+    } catch (e) { flash('Error: ' + e.message, 'err'); }
+  }
+
+  // ===========================================================
+  // Sesiones
+  // ===========================================================
+  async function refreshSesiones() {
+    // Sesion en curso (de este dispositivo)
+    const r = await WMS.dbGet(WMS.STORES.sesion, 'current');
+    const sesionActiva = r ? r.data : null;
+    const card = document.getElementById('ses-current-card');
+    const info = document.getElementById('ses-current-info');
+    const btnDiscard = document.getElementById('btn-discard-session');
+    if (sesionActiva) {
+      const n = (sesionActiva.movimientos || []).length;
+      info.innerHTML = `<strong>${sesionActiva.operario}</strong> · ${n} movimientos<br>
+        <span style="font-size:13px; color:var(--text-dim);">Inicio: ${sesionActiva.fecha} ${sesionActiva.hora_inicio}</span>`;
+      btnDiscard.style.display = '';
+    } else {
+      info.textContent = 'No hay sesion activa en este dispositivo';
+      btnDiscard.style.display = 'none';
+    }
+
+    // Pendientes
+    const all = await WMS.dbGetAll(WMS.STORES.pendientes);
+    document.getElementById('ses-pending-count').textContent = all.length;
+    const list = document.getElementById('ses-pending-list');
+    if (!all.length) {
+      list.innerHTML = '<span style="color:var(--text-dim);">Sin pendientes</span>';
+    } else {
+      list.innerHTML = all.map((it) => {
+        const j = it.json || {};
+        const movs = (j.movimientos || []).length;
+        return `<div class="pending-item">• <strong>${j.operario || '?'}</strong> · ${j.fecha || ''} ${j.hora_inicio || ''}→${j.hora_fin || '?'} · ${movs} movs</div>`;
+      }).join('');
+    }
+  }
+
+  async function discardSession() {
+    if (!confirm('¿Descartar la sesion en curso? Se perderan los movimientos no sincronizados.')) return;
+    await WMS.dbDelete(WMS.STORES.sesion, 'current');
+    await WMS.dbDelete(WMS.STORES.sesion, 'batch');
+    flash('Sesion descartada', 'ok');
+    await refreshSesiones();
+  }
+
+  async function syncAllPending() {
+    if (!navigator.onLine) { flash('Sin conexion', 'err'); return; }
+    const all = await WMS.dbGetAll(WMS.STORES.pendientes);
+    if (!all.length) { flash('No hay pendientes', 'ok'); return; }
+    let ok = 0, fail = 0;
+    for (const it of all) {
+      try {
+        await WMS.uploadSesionToGitHub(state.config, it.json);
+        await WMS.dbDelete(WMS.STORES.pendientes, it.id);
+        ok++;
+      } catch (e) { fail++; }
+    }
+    flash(`Sync: ${ok} OK, ${fail} fallaron`, fail ? 'err' : 'ok');
+    await refreshSesiones();
+  }
+
+  // ===========================================================
+  // Dashboard
+  // ===========================================================
+  function fmtSeg(seg) {
+    if (!seg || seg < 0) return '-';
+    const m = Math.floor(seg / 60);
+    const s = seg % 60;
+    if (m === 0) return s + 's';
+    return m + 'm' + (s > 0 ? ' ' + s + 's' : '');
+  }
+
+  async function renderDashboard() {
+    const cont = document.getElementById('dashboard-content');
+    const status = document.getElementById('dashboard-status');
+
+    if (!state.config.repo || !state.config.token) {
+      cont.innerHTML = '<div class="empty-state" style="color:var(--warn);">Configura GitHub primero.</div>';
+      status.textContent = '';
+      return;
+    }
+    if (!navigator.onLine) {
+      cont.innerHTML = '<div class="empty-state" style="color:var(--warn);">Sin conexion. El dashboard lee del repo, requiere internet.</div>';
+      status.textContent = '';
+      return;
+    }
+
+    cont.innerHTML = '<div class="empty-state">Listando archivos en GitHub...</div>';
+    status.textContent = '';
+
+    let auditorias;
+    try {
+      auditorias = await WMS.loadAuditoriaHistory(state.config, (i, total, name) => {
+        status.textContent = `Descargando ${i}/${total}: ${name}`;
+      });
+    } catch (e) {
+      cont.innerHTML = `<div class="empty-state" style="color:var(--error);">Error: ${e.message}</div>`;
+      status.textContent = '';
+      return;
+    }
+
+    status.textContent = `${auditorias.length} sesiones cargadas desde GitHub (auditoria/)`;
+
+    if (!auditorias.length) {
+      cont.innerHTML = '<div class="empty-state">Aun no hay sesiones publicadas en GitHub. Cuando los operarios terminen turnos y se sincronicen, apareceran aqui.</div>';
+      return;
+    }
+
+    // Agregar pendientes locales tambien (sesiones aun no subidas)
+    const pendientesLocal = await WMS.dbGetAll(WMS.STORES.pendientes);
+
+    // Acumular KPIs
+    let totMovs = 0, totEjec = 0, totHuerf = 0, totDiscr = 0, totSeg = 0;
+    const porAccion = { traslado_individual: 0, traslado_masivo: 0, regularizacion: 0 };
+    const porOperario = {};
+    let turnosCount = auditorias.length;
+
+    function acumular(sessionLike, kpisCached) {
+      const movs = sessionLike.movimientos || [];
+      // Si la sesion ya viene con kpis, usa esos. Sino calcula.
+      const k = kpisCached || WMS.calcularKPIs(sessionLike);
+      totMovs += k.total_movimientos || movs.length;
+      totEjec += k.total_ejecutables || 0;
+      totHuerf += k.total_huerfanos || 0;
+      totDiscr += k.total_discrepancias || 0;
+      totSeg += k.duracion_seg || 0;
+      const pa = k.por_accion || WMS.resumenPorAccion(movs);
+      porAccion.traslado_individual += pa.traslado_individual || 0;
+      porAccion.traslado_masivo += pa.traslado_masivo || 0;
+      porAccion.regularizacion += pa.regularizacion || 0;
+      const op = sessionLike.operario || '?';
+      if (!porOperario[op]) porOperario[op] = { turnos: 0, movs: 0, seg: 0 };
+      porOperario[op].turnos += 1;
+      porOperario[op].movs += movs.length;
+      porOperario[op].seg += k.duracion_seg || 0;
+    }
+
+    // Auditorias de GitHub: ya traen .kpis precalculados
+    auditorias.forEach((a) => acumular(a, a.kpis));
+
+    // Pendientes locales (no subidos aun) — los agrego para que el conteo refleje tiempo real
+    pendientesLocal.forEach((it) => {
+      const s = it.json || {};
+      // Si la sesion ya está en GitHub (mismo id), no la cuento doble
+      const yaEnGithub = auditorias.some((a) => a.id === s.id);
+      if (yaEnGithub) return;
+      acumular(s);
+      turnosCount++;
+    });
+
+    const segPorMov = totMovs > 0 ? Math.round(totSeg / totMovs) : 0;
+    const movsPorTurno = turnosCount > 0 ? (totMovs / turnosCount).toFixed(1) : '0';
+
+    let html = '';
+    html += '<div class="kpi-grid">';
+    html += `<div class="kpi-card"><div class="label-strong">Turnos</div><div class="big-value">${turnosCount}</div></div>`;
+    html += `<div class="kpi-card"><div class="label-strong">Movs totales</div><div class="big-value">${totMovs}</div></div>`;
+    html += `<div class="kpi-card"><div class="label-strong">Ejecutables P331</div><div class="big-value" style="color:var(--accent);">${totEjec}</div></div>`;
+    html += `<div class="kpi-card"><div class="label-strong">Mal ubicados</div><div class="big-value" style="color:var(--warn);">${totDiscr}</div></div>`;
+    html += `<div class="kpi-card"><div class="label-strong">Sin estante (huerf)</div><div class="big-value" style="color:var(--error);">${totHuerf}</div></div>`;
+    html += `<div class="kpi-card"><div class="label-strong">Tiempo total</div><div class="big-value">${fmtSeg(totSeg)}</div></div>`;
+    html += `<div class="kpi-card"><div class="label-strong">Prom seg/mov</div><div class="big-value">${segPorMov}s</div></div>`;
+    html += `<div class="kpi-card"><div class="label-strong">Prom movs/turno</div><div class="big-value">${movsPorTurno}</div></div>`;
+    html += '</div>';
+
+    if (pendientesLocal.length > 0) {
+      const noEnGH = pendientesLocal.filter((it) => !auditorias.some((a) => a.id === (it.json && it.json.id))).length;
+      if (noEnGH > 0) {
+        html += `<div class="card" style="border-color:var(--warn);"><div class="label-strong" style="color:var(--warn);">⚠ ${noEnGH} sesion(es) sin sincronizar</div><div style="font-size:13px;">Estan incluidas en los conteos arriba. Sincroniza para que queden en el historial de GitHub.</div></div>`;
+      }
+    }
+
+    html += '<div class="card"><div class="label-strong">Por modalidad</div>';
+    html += `<table class="kpi-table"><tr><th>Modo</th><th class="num">Movs</th></tr>
+      <tr><td>Individual</td><td class="num">${porAccion.traslado_individual}</td></tr>
+      <tr><td>Masivo</td><td class="num">${porAccion.traslado_masivo}</td></tr>
+      <tr><td>Regularizacion</td><td class="num">${porAccion.regularizacion}</td></tr>
+    </table></div>`;
+
+    const ops = Object.keys(porOperario).sort();
+    if (ops.length > 0) {
+      html += '<div class="card"><div class="label-strong">Por operario</div>';
+      html += `<table class="kpi-table"><tr><th>Operario</th><th class="num">Turnos</th><th class="num">Movs</th><th class="num">Tiempo</th><th class="num">s/mov</th></tr>`;
+      ops.forEach((op) => {
+        const d = porOperario[op];
+        const spm = d.movs > 0 ? Math.round(d.seg / d.movs) : 0;
+        html += `<tr><td>${op}</td><td class="num">${d.turnos}</td><td class="num">${d.movs}</td><td class="num">${fmtSeg(d.seg)}</td><td class="num">${spm}s</td></tr>`;
+      });
+      html += `</table></div>`;
+    }
+    cont.innerHTML = html;
+  }
+
+  async function clearDashboardCache() {
+    if (!confirm('¿Borrar cache local del dashboard? La proxima carga descarga todo de nuevo.')) return;
+    // Borra todas las entradas 'cache:*' del store config
+    const all = await WMS.dbGetAll(WMS.STORES.config);
+    for (const entry of all) {
+      if (entry.key && entry.key.startsWith('cache:')) {
+        await WMS.dbDelete(WMS.STORES.config, entry.key);
+      }
+    }
+    flash('Cache borrado. Refresca el dashboard.', 'ok');
+    document.getElementById('dashboard-content').innerHTML = '<div class="empty-state">Cache vacio. Presiona "Recalcular" para cargar.</div>';
+  }
+
+  // ===========================================================
+  // Init
+  // ===========================================================
+  document.addEventListener('DOMContentLoaded', async () => {
+    refreshNet();
+
+    // Login persistente en sessionStorage
+    if (sessionStorage.getItem('wms_admin_logged') === '1') {
+      state.isLogged = true;
+      await afterLogin();
+    } else {
+      show('screen-login');
+      setTimeout(() => { try { document.getElementById('login-user').focus(); } catch (e) {} }, 80);
+    }
+
+    // Login
+    document.getElementById('btn-login').addEventListener('click', tryLogin);
+    document.getElementById('login-pass').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); tryLogin(); }
+    });
+
+    // Menu
+    document.querySelectorAll('.menu-card').forEach((b) => {
+      b.addEventListener('click', async () => {
+        const dest = b.getAttribute('data-go');
+        if (dest === 'inventario') { await refreshInventario(); show('screen-inventario'); }
+        else if (dest === 'sesiones') { await refreshSesiones(); show('screen-sesiones'); }
+        else if (dest === 'dashboard') { await renderDashboard(); show('screen-dashboard'); }
+        else if (dest === 'config') {
+          document.getElementById('cfg-h1').textContent = 'Editar configuracion';
+          document.getElementById('cfg-back').style.display = '';
+          populateConfigForm();
+          show('screen-config');
+        }
+      });
+    });
+    document.getElementById('btn-logout').addEventListener('click', logout);
+
+    // Back buttons
+    document.querySelectorAll('[data-back="menu"]').forEach((b) => {
+      b.addEventListener('click', goToMenu);
+    });
+    document.getElementById('cfg-back').addEventListener('click', goToMenu);
+
+    // Config
+    document.getElementById('cfg-test').addEventListener('click', cfgTest);
+    document.getElementById('cfg-save').addEventListener('click', cfgSave);
+    document.getElementById('cfg-clear').addEventListener('click', cfgClear);
+    ['cfg-repo', 'cfg-branch', 'cfg-token'].forEach((id) => {
+      document.getElementById(id).addEventListener('input', () => {
+        if (cfgTested) {
+          cfgTested = false;
+          document.getElementById('cfg-save').disabled = true;
+          document.getElementById('cfg-status').innerHTML = '<span style="color:var(--text-dim);">Cambiaste algo. Vuelve a Probar conexion.</span>';
+        }
+      });
+    });
+
+    // Inventario
+    document.getElementById('btn-upload-local').addEventListener('click', () => {
+      document.getElementById('inp-excel').click();
+    });
+    document.getElementById('inp-excel').addEventListener('change', async (e) => {
+      await onUploadLocal(e.target.files[0]);
+      e.target.value = '';
+    });
+    document.getElementById('btn-pull-github').addEventListener('click', onPullGithub);
+    document.getElementById('btn-push-github').addEventListener('click', onPushGithub);
+
+    // Sesiones
+    document.getElementById('btn-discard-session').addEventListener('click', discardSession);
+    document.getElementById('btn-sync-all').addEventListener('click', syncAllPending);
+
+    // Dashboard
+    document.getElementById('btn-dash-refresh').addEventListener('click', renderDashboard);
+    document.getElementById('btn-dash-clearcache').addEventListener('click', clearDashboardCache);
+  });
+
+  // Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch((err) => console.warn('SW fail:', err));
+    });
+  }
+  </script>
+</body>
+</html>

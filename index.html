@@ -101,10 +101,12 @@
 
     .screen {
       flex: 1;
+      min-height: 0; /* permite scroll real dentro del flex container */
       display: none;
       flex-direction: column;
       padding: 16px;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
     .screen.active { display: flex; }
     .screen.no-scroll { overflow: hidden; }
@@ -294,6 +296,125 @@
     }
     .scan-cam-btn:active { opacity: 0.7; }
 
+    /* Secciones colapsables del admin */
+    .adm-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .adm-section summary {
+      padding: 14px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+      font-size: 16px;
+      list-style: none;
+      display: flex;
+      align-items: center;
+    }
+    .adm-section summary::-webkit-details-marker { display: none; }
+    .adm-section summary::after {
+      content: '▸';
+      margin-left: auto;
+      color: var(--text-dim);
+      transition: transform 0.2s;
+      font-size: 14px;
+    }
+    .adm-section[open] summary::after { transform: rotate(90deg); }
+    .adm-section[open] summary { border-bottom: 1px solid var(--border); }
+    .adm-section-body { padding: 14px 16px 16px; }
+
+    /* Dashboard KPI cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .kpi-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+    .kpi-card .label-strong { font-size: 12px; margin-bottom: 4px; }
+    .kpi-card .big-value { font-size: 24px; }
+    @media (min-width: 800px) {
+      .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    .kpi-table {
+      width: 100%;
+      font-size: 13px;
+      border-collapse: collapse;
+      margin-top: 6px;
+    }
+    .kpi-table th, .kpi-table td {
+      padding: 6px 8px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .kpi-table th { color: var(--text-dim); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+    .kpi-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* Items de lista para modos B y C */
+    .batch-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .batch-item.unmarked { border-left-color: var(--text-dim); opacity: 0.7; }
+    .batch-item.noop { border-left-color: var(--accent); }
+    .batch-item.mover { border-left-color: var(--warn); }
+    .batch-item.huerfano { border-left-color: var(--error); background: rgba(255,77,109,0.05); }
+    .batch-item .lote { font-weight: 700; font-size: 16px; }
+    .batch-item .meta { color: var(--text-dim); font-size: 12px; }
+    .batch-item .tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--surface-2);
+      flex-shrink: 0;
+    }
+    .batch-item .tag.noop { background: var(--accent); color: #001b13; }
+    .batch-item .tag.mover { background: var(--warn); color: #1a1100; }
+    .batch-item .tag.huerfano { background: var(--error); color: #fff; }
+    .batch-item input[type="checkbox"] {
+      width: 22px; height: 22px;
+      accent-color: var(--accent);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* Botones grandes para seleccion de modo */
+    .mode-btn {
+      flex-direction: column;
+      align-items: stretch;
+      min-height: 90px;
+      padding: 16px;
+      text-align: left;
+      margin-top: 10px;
+    }
+    .mode-btn-title {
+      font-size: 19px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .mode-btn-desc {
+      font-size: 13px;
+      font-weight: 400;
+      opacity: 0.8;
+    }
+
     .summary-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -424,69 +545,44 @@
       <div class="card" id="op-inv-card" style="margin-top:18px;">
         <div class="label-strong">Inventario actual</div>
         <div id="op-inv-info" style="font-size:15px;">Verificando...</div>
-        <button class="btn secondary" id="btn-refresh-inv" style="margin-top:10px;">Actualizar inventario desde GitHub</button>
       </div>
     </section>
 
-    <!-- PANTALLA ADMIN -->
-    <section class="screen" id="screen-admin">
-      <h1>Panel de administracion</h1>
-
-      <h2>1. Configuracion GitHub</h2>
-      <div class="card">
-        <p style="font-size:13px; color:var(--text-dim); margin:0 0 10px;">
-          Token con permisos <strong>contents:write</strong> en el repo. Se guarda en IndexedDB del dispositivo.
-        </p>
-        <label for="cfg-repo">Repo (usuario/repo)</label>
-        <input type="text" id="cfg-repo" placeholder="InnovaJeruth/rollos-wms" autocomplete="off">
-        <label for="cfg-branch">Branch</label>
-        <input type="text" id="cfg-branch" placeholder="main" autocomplete="off">
-        <label for="cfg-token">Token (ghp_... o github_pat_...)</label>
-        <input type="password" id="cfg-token" placeholder="ghp_xxxxxxxxxxxx" autocomplete="new-password">
-        <div class="btn-row" style="margin-top:14px;">
-          <button class="btn" id="cfg-save">Guardar</button>
-          <button class="btn secondary" id="cfg-test">Probar conexion</button>
-        </div>
-        <button class="btn danger" id="cfg-clear" style="margin-top:8px;">Borrar configuracion</button>
-        <div id="cfg-status" style="margin-top:10px; font-size:14px; color:var(--text-dim);">Estado: sin configurar</div>
-      </div>
-
-      <h2>2. Inventario SAP</h2>
-      <div class="card" id="adm-inv-status">
-        <div class="label-strong">Estado local</div>
-        <div id="adm-inv-info">Sin inventario cargado</div>
-        <div class="label-strong" style="margin-top:10px;">Estado en GitHub</div>
-        <div id="adm-inv-github" style="font-size:14px; color:var(--text-dim);">-</div>
-      </div>
-      <label for="inp-excel">Cargar Excel exportado de /SCWM/MON (.xlsx)</label>
-      <p id="excel-help" style="font-size:13px; color:var(--warn); margin:6px 0;">
-        ⚠️ Configura GitHub primero (paso 1) antes de cargar el Excel.
+    <!-- PANTALLA: seleccion de modo -->
+    <section class="screen" id="screen-mode-select">
+      <h1>¿Que vas a hacer?</h1>
+      <p style="color: var(--text-dim); margin-bottom: 18px;">
+        Operario: <strong id="mode-op-name">-</strong>
       </p>
-      <input type="file" id="inp-excel" accept=".xlsx,.xls" disabled>
-      <div class="btn-row" style="margin-top:8px;">
-        <button class="btn secondary" id="adm-btn-pull-inv">Bajar de GitHub</button>
-        <button class="btn secondary" id="adm-btn-push-inv">Republicar a GitHub</button>
+
+      <button class="btn mode-btn" data-modo="individual">
+        <div class="mode-btn-title">📦 Traslado individual</div>
+        <div class="mode-btn-desc">Mover rollos uno por uno con destinos distintos</div>
+      </button>
+
+      <button class="btn mode-btn secondary" data-modo="masivo">
+        <div class="mode-btn-title">📚 Traslado masivo</div>
+        <div class="mode-btn-desc">Llevar todo el contenido de un estante a otro</div>
+      </button>
+
+      <button class="btn mode-btn secondary" data-modo="regularizacion">
+        <div class="mode-btn-title">🔍 Regularizacion</div>
+        <div class="mode-btn-desc">Registrar que rollos estan fisicamente en un estante</div>
+      </button>
+
+      <div id="mode-summary-card" class="card" style="margin-top:18px; display:none;">
+        <div class="label-strong">Sesion en curso</div>
+        <div id="mode-summary-text" style="font-size:14px;">-</div>
       </div>
 
-      <h2>Sincronizacion pendiente</h2>
-      <div class="card">
-        <div class="label-strong">Sesiones pendientes de subir</div>
-        <div id="adm-pending-count" class="big-value">0</div>
-        <button class="btn" id="adm-btn-sync-pending" style="margin-top:8px;">Sincronizar pendientes</button>
-      </div>
-
-      <h2>Sesion en curso</h2>
-      <div class="card" id="adm-session-card">
-        <div id="adm-session-info">No hay sesion activa</div>
-        <button class="btn danger" id="adm-discard-session" style="margin-top:10px; display:none;">Descartar sesion en curso</button>
-      </div>
-
-      <button class="btn secondary" id="adm-exit" style="margin-top:14px;">Salir del panel</button>
+      <button class="btn warn" id="btn-mode-finalizar" style="margin-top:18px;">Finalizar turno</button>
     </section>
+
+    <!-- Panel admin removido — vive en admin.html separado -->
 
     <!-- PANTALLA 2: Escanear lote -->
     <section class="screen no-scroll" id="screen-scan-lote">
-      <div class="step-indicator">Paso 1 de 3 — Escanear rollo</div>
+      <div class="step-indicator">Modo INDIVIDUAL — Paso 1 de 3 — Escanear rollo</div>
       <div class="scan-stage">
         <h1>Lote SAP ID</h1>
         <label for="inp-lote">Escanea QR o digita el lote</label>
@@ -496,11 +592,108 @@
         </div>
         <button class="btn" id="btn-buscar-lote">Buscar</button>
         <button class="btn secondary" id="btn-ver-lista">Ver lista de movimientos (<span id="cnt-movs">0</span>)</button>
+        <button class="btn secondary" id="btn-change-mode-a">Cambiar modo</button>
         <button class="btn warn" id="btn-finalizar-temprano">Finalizar turno</button>
       </div>
     </section>
 
-    <!-- PANTALLA 3: Confirmar bin SAP -->
+    <!-- MODO B (Traslado masivo): pantalla 1 - estante origen -->
+    <section class="screen no-scroll" id="screen-bulk-origin">
+      <div class="step-indicator">Modo MASIVO — Paso 1 de 3 — Estante origen</div>
+      <div class="scan-stage">
+        <h1>Estante origen</h1>
+        <label for="inp-bulk-origin">Escanea el estante de donde salen los rollos</label>
+        <div class="scan-row">
+          <input type="text" id="inp-bulk-origin" autocomplete="off" placeholder="Ej: A001-08-08-02">
+          <button class="scan-cam-btn" data-target="bulk-origin" aria-label="Camara">📷</button>
+        </div>
+        <button class="btn" id="btn-bulk-origin-go">Continuar</button>
+        <button class="btn secondary" id="btn-bulk-change-mode">Cambiar modo</button>
+        <button class="btn warn" id="btn-bulk-finalizar">Finalizar turno</button>
+      </div>
+    </section>
+
+    <!-- MODO B: pantalla 2 - lista de rollos -->
+    <section class="screen" id="screen-bulk-list">
+      <div class="step-indicator">Modo MASIVO — Paso 2 de 3 — Confirmar rollos</div>
+      <div class="card">
+        <div class="label-strong">Estante origen</div>
+        <div id="bulk-origin-display" class="big-value" style="color:var(--accent-2);">-</div>
+        <div class="label-strong" style="margin-top:6px;">Estado</div>
+        <div id="bulk-stats" style="font-size:15px;">- marcados de - esperados</div>
+      </div>
+
+      <label for="inp-bulk-scan">Escanea cada rollo que se va (o marca/desmarca con el check)</label>
+      <div class="scan-row">
+        <input type="text" id="inp-bulk-scan" autocomplete="off" inputmode="numeric" placeholder="Lote">
+        <button class="scan-cam-btn" data-target="bulk-scan" aria-label="Camara">📷</button>
+      </div>
+
+      <div id="bulk-list-items" style="margin-top:8px;"></div>
+
+      <button class="btn" id="btn-bulk-continue">Continuar al estante destino</button>
+      <button class="btn secondary" id="btn-bulk-cancel">Cancelar este estante</button>
+    </section>
+
+    <!-- MODO B: pantalla 3 - estante destino -->
+    <section class="screen no-scroll" id="screen-bulk-dest">
+      <div class="step-indicator">Modo MASIVO — Paso 3 de 3 — Estante destino</div>
+      <div class="scan-stage">
+        <div class="card">
+          <div class="label-strong">Moviendo</div>
+          <div id="bulk-dest-summary" style="font-size:17px; font-weight:700;">- rollos</div>
+          <div class="label-strong" style="margin-top:6px;">Desde</div>
+          <div id="bulk-dest-origen" style="font-size:16px;">-</div>
+        </div>
+        <h1>Estante destino</h1>
+        <label for="inp-bulk-dest">Escanea la etiqueta del estante destino</label>
+        <div class="scan-row">
+          <input type="text" id="inp-bulk-dest" autocomplete="off" placeholder="Ej: A003-08-07-03">
+          <button class="scan-cam-btn" data-target="bulk-dest" aria-label="Camara">📷</button>
+        </div>
+        <button class="btn" id="btn-bulk-dest-confirm">Confirmar traslado</button>
+        <button class="btn secondary" id="btn-bulk-back-list">Atras</button>
+      </div>
+    </section>
+
+    <!-- MODO C (Regularizacion): pantalla 1 - estante fisico -->
+    <section class="screen no-scroll" id="screen-reg-bin">
+      <div class="step-indicator">Modo REGULARIZACION — Paso 1 de 2 — Estante fisico</div>
+      <div class="scan-stage">
+        <h1>Estante donde estas parado</h1>
+        <label for="inp-reg-bin">Escanea la etiqueta del estante donde estas</label>
+        <div class="scan-row">
+          <input type="text" id="inp-reg-bin" autocomplete="off" placeholder="Ej: A001-08-08-02">
+          <button class="scan-cam-btn" data-target="reg-bin" aria-label="Camara">📷</button>
+        </div>
+        <button class="btn" id="btn-reg-bin-go">Continuar</button>
+        <button class="btn secondary" id="btn-reg-change-mode">Cambiar modo</button>
+        <button class="btn warn" id="btn-reg-finalizar">Finalizar turno</button>
+      </div>
+    </section>
+
+    <!-- MODO C: pantalla 2 - escanear rollos -->
+    <section class="screen" id="screen-reg-scan">
+      <div class="step-indicator">Modo REGULARIZACION — Paso 2 de 2 — Escanear rollos</div>
+      <div class="card">
+        <div class="label-strong">Estante fisico</div>
+        <div id="reg-bin-display" class="big-value" style="color:var(--accent-2);">-</div>
+        <div id="reg-stats" style="font-size:15px; margin-top:4px;">- escaneados (- a regularizar, - en su lugar, - huerfanos)</div>
+      </div>
+
+      <label for="inp-reg-scan">Escanea cada rollo que veas fisicamente aqui</label>
+      <div class="scan-row">
+        <input type="text" id="inp-reg-scan" autocomplete="off" inputmode="numeric" placeholder="Lote">
+        <button class="scan-cam-btn" data-target="reg-scan" aria-label="Camara">📷</button>
+      </div>
+
+      <div id="reg-list-items" style="margin-top:8px;"></div>
+
+      <button class="btn" id="btn-reg-finish-bin">Finalizar este estante</button>
+      <button class="btn secondary" id="btn-reg-cancel">Cancelar este estante</button>
+    </section>
+
+    <!-- PANTALLA 3: Confirmar estante SAP -->
     <section class="screen no-scroll" id="screen-confirm-bin">
       <div class="step-indicator">Paso 2 de 3 — Confirmar ubicacion</div>
       <div class="scan-stage">
@@ -512,10 +705,10 @@
           <div id="conf-descripcion" style="font-size:14px; color:var(--text-dim);">-</div>
         </div>
         <div class="card">
-          <div class="label-strong">SAP indica bin</div>
+          <div class="label-strong">SAP indica estante</div>
           <div class="big-value" id="conf-bin-sap" style="color:var(--accent-2);">-</div>
         </div>
-        <div class="ask">¿Esta fisicamente en esa ubicacion?</div>
+        <div class="ask">¿Esta fisicamente en ese estante?</div>
         <div class="yesno">
           <button class="btn yes" id="btn-si-bin">SI</button>
           <button class="btn no" id="btn-no-bin">NO</button>
@@ -524,28 +717,28 @@
       </div>
     </section>
 
-    <!-- PANTALLA 4: Bin real -->
+    <!-- PANTALLA 4: Estante real -->
     <section class="screen no-scroll" id="screen-real-bin">
-      <div class="step-indicator">Discrepancia — bin real</div>
+      <div class="step-indicator">Discrepancia — estante real</div>
       <div class="scan-stage">
         <div class="card alert">
           <div class="label-strong">SAP decia</div>
           <div id="real-bin-sap" style="font-size:18px;">-</div>
         </div>
-        <h1>Bin real actual</h1>
+        <h1>Estante real actual</h1>
         <label for="inp-bin-real">Escanea la etiqueta del estante donde realmente esta</label>
         <div class="scan-row">
           <input type="text" id="inp-bin-real" autocomplete="off" placeholder="Ej: A002-05-01-01">
           <button class="scan-cam-btn" data-target="bin-real" aria-label="Camara">📷</button>
         </div>
-        <button class="btn" id="btn-conf-bin-real">Confirmar bin real</button>
+        <button class="btn" id="btn-conf-bin-real">Confirmar estante real</button>
         <button class="btn secondary" id="btn-back-confirm">Atras</button>
       </div>
     </section>
 
-    <!-- PANTALLA 5: Bin destino -->
+    <!-- PANTALLA 5: Estante destino -->
     <section class="screen no-scroll" id="screen-dest-bin">
-      <div class="step-indicator">Paso 3 de 3 — Bin destino</div>
+      <div class="step-indicator">Paso 3 de 3 — Estante destino</div>
       <div class="scan-stage">
         <div class="card">
           <div class="label-strong">Moviendo lote</div>
@@ -553,7 +746,7 @@
           <div class="label-strong" style="margin-top:6px;">Desde</div>
           <div id="dest-origen" style="font-size:16px;">-</div>
         </div>
-        <h1>Bin destino</h1>
+        <h1>Estante destino</h1>
         <label for="inp-bin-dest">Escanea la etiqueta del estante destino</label>
         <div class="scan-row">
           <input type="text" id="inp-bin-dest" autocomplete="off" placeholder="Ej: A003-08-07-03">
@@ -584,6 +777,10 @@
         <div class="card"><div class="label-strong">Discrepancias</div><div class="big-value" id="fin-discrep" style="color:var(--error);">0</div></div>
       </div>
       <div class="card">
+        <div class="label-strong">Por modalidad</div>
+        <div id="fin-resumen-accion" style="font-size:15px;">-</div>
+      </div>
+      <div class="card">
         <div class="label-strong">Operario</div>
         <div id="fin-operario">-</div>
         <div class="label-strong" style="margin-top:6px;">Hora inicio</div>
@@ -592,31 +789,14 @@
         <div id="fin-fin">-</div>
       </div>
       <div class="card" id="sync-status-card">
-        <div class="label-strong">Estado sincronizacion</div>
-        <div id="sync-status">Pendiente</div>
+        <div class="label-strong">Estado del turno</div>
+        <div id="sync-status">Listo para guardar</div>
       </div>
-      <button class="btn" id="btn-sync-now">Sincronizar con GitHub</button>
+      <button class="btn" id="btn-end-session">Guardar y terminar turno</button>
       <button class="btn secondary" id="btn-back-to-list">Volver a la lista</button>
-      <button class="btn danger" id="btn-end-session">Terminar y cerrar sesion</button>
     </section>
 
-    <div class="footer-info" id="footer-info">v1.0.0</div>
-  </div>
-
-  <!-- Modal login admin -->
-  <div class="modal-backdrop" id="modal-admin-login">
-    <div class="modal">
-      <h1 style="margin-top:0;">Acceso administrador</h1>
-      <p style="font-size:14px; color:var(--text-dim);">Solo personal autorizado.</p>
-      <label for="adm-user">Usuario</label>
-      <input type="text" id="adm-user" autocomplete="off" placeholder="usuario">
-      <label for="adm-pass">Contraseña</label>
-      <input type="password" id="adm-pass" autocomplete="new-password" placeholder="••••••">
-      <div class="btn-row" style="margin-top:14px;">
-        <button class="btn" id="adm-login-ok">Ingresar</button>
-        <button class="btn secondary" id="adm-login-cancel">Cancelar</button>
-      </div>
-    </div>
+    <div class="footer-info" id="footer-info">v2.0.0 · operario · 3 modos</div>
   </div>
 
   <!-- Modal camara -->
@@ -636,115 +816,28 @@
   <div class="flash" id="flash">mensaje</div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="config.js"></script>
+  <script src="common.js"></script>
   <script>
   'use strict';
 
   // ============================================================
-  // IndexedDB wrapper (Promises)
+  // Importacion de la libreria compartida (common.js / WMS.*)
   // ============================================================
-  const DB_NAME = 'wms_rollos';
-  const DB_VERSION = 1;
-  const STORES = {
-    config: 'config',
-    inventario: 'inventario',
-    sesion: 'sesion',
-    pendientes: 'pendientes'
-  };
-
-  function openDB() {
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains(STORES.config)) {
-          db.createObjectStore(STORES.config, { keyPath: 'key' });
-        }
-        if (!db.objectStoreNames.contains(STORES.inventario)) {
-          const s = db.createObjectStore(STORES.inventario, { keyPath: 'lote' });
-          s.createIndex('producto', 'producto', { unique: false });
-        }
-        if (!db.objectStoreNames.contains(STORES.sesion)) {
-          db.createObjectStore(STORES.sesion, { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains(STORES.pendientes)) {
-          db.createObjectStore(STORES.pendientes, { keyPath: 'id' });
-        }
-      };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
+  // Todas las helpers de IndexedDB, GitHub API, utils, inventario y builders
+  // viven en common.js. El operario las usa directamente sin duplicar codigo.
+  if (typeof WMS === 'undefined') {
+    document.body && (document.body.innerHTML = '<div style="color:#fff;background:#a00;padding:24px;font-family:sans-serif;">Error: common.js no cargado. Verifica que el script este antes que index.html.</div>');
+    throw new Error('common.js no cargado');
   }
-
-  let _db = null;
-  async function db() { if (!_db) _db = await openDB(); return _db; }
-
-  function tx(store, mode) {
-    return db().then((d) => d.transaction(store, mode).objectStore(store));
-  }
-
-  async function dbGet(store, key) {
-    const s = await tx(store, 'readonly');
-    return new Promise((res, rej) => {
-      const r = s.get(key); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
-    });
-  }
-  async function dbPut(store, value) {
-    const s = await tx(store, 'readwrite');
-    return new Promise((res, rej) => {
-      const r = s.put(value); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
-    });
-  }
-  async function dbDelete(store, key) {
-    const s = await tx(store, 'readwrite');
-    return new Promise((res, rej) => {
-      const r = s.delete(key); r.onsuccess = () => res(); r.onerror = () => rej(r.error);
-    });
-  }
-  async function dbGetAll(store) {
-    const s = await tx(store, 'readonly');
-    return new Promise((res, rej) => {
-      const r = s.getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error);
-    });
-  }
-  async function dbClear(store) {
-    const s = await tx(store, 'readwrite');
-    return new Promise((res, rej) => {
-      const r = s.clear(); r.onsuccess = () => res(); r.onerror = () => rej(r.error);
-    });
-  }
-  async function dbCount(store) {
-    const s = await tx(store, 'readonly');
-    return new Promise((res, rej) => {
-      const r = s.count(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
-    });
-  }
-
-  // ============================================================
-  // Utilidades
-  // ============================================================
-  function uuidv4() {
-    if (crypto && crypto.randomUUID) return crypto.randomUUID();
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  }
-  function pad2(n) { return String(n).padStart(2, '0'); }
-  function fechaISO(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
-  function horaISO(d) { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()); }
-  function tsISO(d) {
-    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' +
-           pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
-  }
-  function normBin(s) { return String(s || '').trim().toUpperCase(); }
-  function normLote(s) { return String(s || '').trim().replace(/^0+/, '') || '0'; }
-  function b64encodeUtf8(str) { return btoa(unescape(encodeURIComponent(str))); }
-  function b64decodeUtf8(b64) {
-    const clean = String(b64 || '').replace(/\s/g, '');
-    try { return decodeURIComponent(escape(atob(clean))); }
-    catch (e) { return atob(clean); }
-  }
+  // Solo los nombres realmente usados en el operario. El resto se accede via WMS.*
+  const {
+    STORES, dbGet, dbPut, dbDelete, dbGetAll, dbCount,
+    uuidv4, normBin, normLote, tsISO, shortId,
+    lookupInventario, getRollosEnBin,
+    resumenPorAccion, makeAuditoriaFromSession,
+    uploadSesionToGitHub, getGithubInventoryDate, pullInventoryFromGitHub
+  } = WMS;
 
   function flash(msg, type) {
     const el = document.getElementById('flash');
@@ -762,7 +855,9 @@
     sesion: null,
     currentLote: null,
     currentMov: null,
-    config: { repo: '', branch: 'main', token: '' },
+    modoActivo: 'individual', // 'individual' | 'masivo' | 'regularizacion'
+    currentBatch: null,       // estado intermedio de batch en modos B/C
+    config: { repo: '', branch: 'main', token: '' }, // se llena desde WMS.loadConfig (IndexedDB > PROJECT_CONFIG)
     hasCamera: false,
     isAdmin: false
   };
@@ -771,6 +866,11 @@
   const ADMIN_USER = 'sa';
   const ADMIN_PASS = 'sa';
 
+  // IDs de elementos DOM usados en refreshOperatorInventoryInfo.
+  // Si se renombran en el HTML, cambiar aqui tambien.
+  const DOM_ID_INV_INFO = 'op-inv-info';
+  const DOM_ID_INV_CARD = 'op-inv-card';
+
   // ============================================================
   // Navegacion entre pantallas
   // ============================================================
@@ -778,6 +878,9 @@
     document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
     const el = document.getElementById(id);
     if (el) el.classList.add('active');
+    // Esconder el engranaje cuando estamos en el panel admin (evita reabrir login)
+    const adminBtn = document.getElementById('btn-admin');
+    if (adminBtn) adminBtn.style.display = (id === 'screen-admin') ? 'none' : '';
     setTimeout(() => {
       const inp = el && el.querySelector('input[type="text"]');
       if (inp && !inp.readOnly) try { inp.focus(); inp.select && inp.select(); } catch(e){}
@@ -883,179 +986,72 @@
     } else if (target === 'bin-dest') {
       document.getElementById('inp-bin-dest').value = val;
       confirmMovimiento();
+    } else if (target === 'reg-bin') {
+      document.getElementById('inp-reg-bin').value = val;
+      confirmRegBin();
+    } else if (target === 'reg-scan') {
+      document.getElementById('inp-reg-scan').value = val;
+      addRegScan(val);
+    } else if (target === 'bulk-origin') {
+      document.getElementById('inp-bulk-origin').value = val;
+      confirmBulkOrigin();
+    } else if (target === 'bulk-scan') {
+      document.getElementById('inp-bulk-scan').value = val;
+      addBulkScan(val);
+    } else if (target === 'bulk-dest') {
+      document.getElementById('inp-bulk-dest').value = val;
+      confirmBulkDest();
     }
   }
 
-  // ============================================================
-  // Config GitHub
-  // ============================================================
-  async function loadConfig() {
-    const repo = await dbGet(STORES.config, 'repo');
-    const branch = await dbGet(STORES.config, 'branch');
-    const token = await dbGet(STORES.config, 'token');
-    state.config.repo = repo ? repo.value : '';
-    state.config.branch = branch ? branch.value : 'main';
-    state.config.token = token ? token.value : '';
-  }
-  async function saveConfig(cfg) {
-    await dbPut(STORES.config, { key: 'repo', value: cfg.repo });
-    await dbPut(STORES.config, { key: 'branch', value: cfg.branch || 'main' });
-    await dbPut(STORES.config, { key: 'token', value: cfg.token });
-    state.config = { ...cfg, branch: cfg.branch || 'main' };
+  // Helper: carga state.config desde IndexedDB + PROJECT_CONFIG (admin lo configuro)
+  async function loadConfigIntoState() {
+    state.config = await WMS.loadConfig();
   }
 
-  function updateGithubConfigUI() {
-    const ok = !!(state.config.repo && state.config.token);
-    const inp = document.getElementById('inp-excel');
-    const help = document.getElementById('excel-help');
-    const status = document.getElementById('cfg-status');
-    if (inp) inp.disabled = !ok;
-    if (help) {
-      if (ok) {
-        help.style.color = 'var(--text-dim)';
-        help.textContent = '✓ Listo. Al cargar el Excel se subira automaticamente a GitHub.';
-      } else {
-        help.style.color = 'var(--warn)';
-        help.textContent = '⚠️ Configura GitHub primero (paso 1) antes de cargar el Excel.';
-      }
-    }
-    if (status) {
-      if (ok) {
-        status.innerHTML = '<span style="color:var(--accent);">✓ Configurado</span> ' +
-                          '<span style="color:var(--text-dim);">· ' + state.config.repo + ' @ ' + (state.config.branch || 'main') + '</span>';
-      } else {
-        status.innerHTML = '<span style="color:var(--warn);">Sin configurar</span>';
-      }
-    }
-  }
-
-  async function testGithubConnection() {
-    if (!state.config.repo || !state.config.token) throw new Error('Falta repo o token');
-    if (!navigator.onLine) throw new Error('Sin conexion');
-    const url = `https://api.github.com/repos/${state.config.repo}`;
-    const resp = await fetch(url, {
-      headers: {
-        'Authorization': 'token ' + state.config.token,
-        'Accept': 'application/vnd.github+json'
-      }
-    });
-    if (resp.status === 401) throw new Error('Token invalido (401)');
-    if (resp.status === 403) throw new Error('Token sin permisos (403)');
-    if (resp.status === 404) throw new Error('Repo no encontrado o sin acceso (404)');
-    if (!resp.ok) throw new Error('GitHub respondio ' + resp.status);
-    const j = await resp.json();
-    const canWrite = j.permissions && j.permissions.push;
-    if (!canWrite) {
-      throw new Error('Token sin permiso de escritura. Necesita Contents: Read AND WRITE');
-    }
-    return {
-      full_name: j.full_name,
-      default_branch: j.default_branch,
-      private: j.private,
-      can_write: canWrite
-    };
-  }
-
-  // ============================================================
-  // Inventario (Excel)
-  // ============================================================
-  function pickColumn(row, candidates) {
-    const keys = Object.keys(row);
-    for (const cand of candidates) {
-      const found = keys.find((k) => k.toLowerCase().trim() === cand.toLowerCase().trim());
-      if (found) return row[found];
-    }
-    for (const cand of candidates) {
-      const found = keys.find((k) => k.toLowerCase().includes(cand.toLowerCase()));
-      if (found) return row[found];
-    }
-    return '';
-  }
-
-  async function parseExcel(file) {
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type: 'array' });
-    const sheetName = wb.SheetNames[0];
-    const sheet = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
-    if (!rows.length) throw new Error('Excel vacio');
-
-    await dbClear(STORES.inventario);
-    let count = 0;
-    for (const r of rows) {
-      const lote = String(pickColumn(r, ['Lote', 'Lote SAP', 'Batch'])).trim();
-      if (!lote) continue;
-      const item = {
-        lote: normLote(lote),
-        producto: String(pickColumn(r, ['Producto', 'Material', 'Codigo material', 'Codigo'])).trim(),
-        descripcion: String(pickColumn(r, ['Descripcion de producto', 'Descripcion', 'Descripcion material', 'Material descripcion'])).trim(),
-        ubicacion: normBin(pickColumn(r, ['Ubicacion', 'Bin', 'Storage Bin'])),
-        cantidad: String(pickColumn(r, ['Ctd.', 'Ctd', 'Cantidad', 'Quantity'])).trim(),
-        unidad: String(pickColumn(r, ['Unidad medida bal', 'Unidad', 'UM', 'Unit'])).trim()
-      };
-      await dbPut(STORES.inventario, item);
-      count++;
-    }
-    await dbPut(STORES.config, { key: 'inventario_fecha', value: tsISO(new Date()) });
-    await dbPut(STORES.config, { key: 'inventario_count', value: count });
-    return count;
-  }
+  // Inventario / Excel: el operario solo LEE. Toda la logica de carga/sync vive en
+  // common.js y admin.html. parseExcel, normalizeHeader, pickColumn no se usan aqui.
 
   async function refreshInventoryStatus() {
     const count = await dbCount(STORES.inventario);
-    const fecha = await dbGet(STORES.config, 'inventario_fecha');
+    const publishedRec = await dbGet(STORES.config, 'inventario_published_at');
+    const loadedRec = await dbGet(STORES.config, 'inventario_loaded_at');
+    const fallbackRec = await dbGet(STORES.config, 'inventario_fecha');
     const ghFecha = await dbGet(STORES.config, 'inventario_global_fecha');
 
-    // Admin: estado local
-    const info = document.getElementById('adm-inv-info');
-    if (info) {
-      if (count > 0 && fecha) {
-        info.innerHTML = `<strong>${count}</strong> registros<br><span style="font-size:14px;color:var(--text-dim);">Local: ${fecha.value}</span>`;
-      } else {
-        info.innerHTML = '<span style="color:var(--warn);">⚠️ Sin inventario local</span>';
-      }
-    }
-    // Admin: estado en GitHub (cache local)
-    const ghEl = document.getElementById('adm-inv-github');
-    if (ghEl) {
-      if (ghFecha && ghFecha.value) {
-        ghEl.textContent = 'Publicado: ' + ghFecha.value;
-      } else {
-        ghEl.textContent = '(aun no publicado a GitHub desde este dispositivo)';
-      }
-    }
+    const published = (publishedRec && publishedRec.value) || (fallbackRec && fallbackRec.value) || '';
+    const loaded = (loadedRec && loadedRec.value) || '';
 
     // Operario: card en pantalla de identificacion
-    refreshOperatorInventoryInfo(count, fecha, ghFecha);
+    refreshOperatorInventoryInfo(count, published, loaded);
 
     return count;
   }
 
-  function refreshOperatorInventoryInfo(count, fechaRec, ghFechaRec) {
-    const info = document.getElementById('op-inv-info');
-    const btn = document.getElementById('btn-refresh-inv');
-    const card = document.getElementById('op-inv-card');
+  function refreshOperatorInventoryInfo(count, publishedAt, loadedAt) {
+    const info = document.getElementById(DOM_ID_INV_INFO);
+    const card = document.getElementById(DOM_ID_INV_CARD);
     if (!info) return;
-    const fecha = fechaRec && fechaRec.value;
-    const cfgOk = state.config.repo && state.config.token;
 
-    if (count > 0 && fecha) {
-      info.innerHTML = `<strong>${count}</strong> registros · ${fecha}`;
-      card.style.borderColor = 'var(--border)';
-    } else if (cfgOk) {
-      info.innerHTML = '<span style="color:var(--warn);">Sin inventario local. Presiona Actualizar.</span>';
-      card.style.borderColor = 'var(--warn)';
+    if (count > 0 && publishedAt) {
+      // Aviso si los datos publicados tienen mas de 24h
+      let warn = '';
+      const ms = Date.parse(publishedAt);
+      if (!isNaN(ms)) {
+        const ageH = (Date.now() - ms) / 3600000;
+        if (ageH > 24) {
+          warn = `<br><span style="color:var(--warn); font-size:13px;">⚠️ Datos de SAP de hace ${Math.floor(ageH)}h. Pide al admin que actualice.</span>`;
+        }
+      }
+      let extra = '';
+      if (loadedAt && loadedAt !== publishedAt) {
+        extra = `<br><span style="font-size:12px; color:var(--text-dim);">Bajado: ${loadedAt}</span>`;
+      }
+      info.innerHTML = `<strong>${count}</strong> rollos · publicado ${publishedAt}` + extra + warn;
+      card.style.borderColor = warn ? 'var(--warn)' : 'var(--border)';
     } else {
-      info.innerHTML = '<span style="color:var(--warn);">Sin inventario y GitHub no configurado.<br>Contacta al administrador.</span>';
+      info.innerHTML = '<span style="color:var(--warn);">Sin inventario cargado.<br>Solicita al administrador que lo cargue.</span>';
       card.style.borderColor = 'var(--warn)';
-    }
-
-    if (btn) {
-      btn.style.display = cfgOk ? '' : 'none';
-      btn.disabled = !navigator.onLine;
-      btn.textContent = navigator.onLine
-        ? 'Actualizar inventario desde GitHub'
-        : 'Sin conexion (no se puede actualizar)';
     }
   }
 
@@ -1096,38 +1092,500 @@
   }
 
   // ============================================================
+  // Helpers locales del operario (los compartidos vienen de WMS)
+  // ============================================================
+  // makeMov: wrapper que inyecta state.modoActivo sobre WMS.makeMov
+  function buildMov(partial) {
+    return WMS.makeMov(state.modoActivo, partial);
+  }
+
+  // pushMovimiento: agrega un movimiento a la sesion actual + persiste.
+  // No esta en WMS porque toca state local + UI.
+  async function pushMovimiento(mov) {
+    if (!state.sesion) return;
+    if (!mov.timestamp) mov.timestamp = tsISO(new Date());
+    state.sesion.movimientos.push(mov);
+    await persistSesion();
+    updateMovsCount();
+  }
+
+  // ============================================================
+  // Navegacion entre modos
+  // ============================================================
+  function goToModeSelect() {
+    const op = (state.sesion && state.sesion.operario) || '-';
+    document.getElementById('mode-op-name').textContent = op;
+    const movs = (state.sesion && state.sesion.movimientos) || [];
+    const card = document.getElementById('mode-summary-card');
+    const txt = document.getElementById('mode-summary-text');
+    if (movs.length > 0) {
+      const r = WMS.resumenPorAccion(movs);
+      txt.innerHTML =
+        `<strong>${movs.length}</strong> movimientos registrados · ` +
+        `<span style="color:var(--accent-2);">${r.traslado_individual} indiv</span> · ` +
+        `<span style="color:var(--warn);">${r.traslado_masivo} masivo</span> · ` +
+        `<span style="color:var(--accent);">${r.regularizacion} regul</span>`;
+      card.style.display = '';
+    } else {
+      card.style.display = 'none';
+    }
+    show('screen-mode-select');
+  }
+
+  async function seleccionarModo(modo) {
+    // Si hay batch sin commitear de otro modo, avisar
+    if (state.currentBatch && state.currentBatch.modo !== modo) {
+      const ok = confirm('Hay un batch sin guardar (modo ' + state.currentBatch.modo + '). Se perdera. ¿Continuar?');
+      if (!ok) return;
+      state.currentBatch = null;
+      await persistBatch();
+    }
+    state.modoActivo = modo;
+    if (modo === 'individual') {
+      // Limpia cualquier currentMov colgado
+      state.currentMov = null;
+      state.currentLote = null;
+      document.getElementById('inp-lote').value = '';
+      show('screen-scan-lote');
+    } else if (modo === 'masivo') {
+      iniciarModoMasivo();
+    } else if (modo === 'regularizacion') {
+      iniciarModoRegularizacion();
+    }
+  }
+
+  // Placeholders — se implementan en tareas 3 y 4
+  function iniciarModoMasivo() {
+    state.currentBatch = null;
+    document.getElementById('inp-bulk-origin').value = '';
+    show('screen-bulk-origin');
+  }
+  function iniciarModoRegularizacion() {
+    state.currentBatch = null;
+    document.getElementById('inp-reg-bin').value = '';
+    show('screen-reg-bin');
+  }
+
+  // Persistencia del batch en IndexedDB (sub-key del store sesion)
+  async function persistBatch() {
+    if (state.currentBatch) {
+      await dbPut(STORES.sesion, { id: 'batch', data: state.currentBatch });
+    } else {
+      try { await dbDelete(STORES.sesion, 'batch'); } catch (e) {}
+    }
+  }
+  async function loadBatch() {
+    const r = await dbGet(STORES.sesion, 'batch');
+    state.currentBatch = r ? r.data : null;
+  }
+
+  // ============================================================
+  // Modo C: Regularizacion
+  // ============================================================
+  async function confirmRegBin() {
+    const bin = normBin(document.getElementById('inp-reg-bin').value);
+    if (!bin) { flash('Escanea el estante fisico', 'err'); return; }
+    if (bin.length < 4) { flash('Estante demasiado corto', 'err'); return; }
+    if (binParecelote(bin)) {
+      if (!confirm('"' + bin + '" parece un numero de lote, no un estante. ¿Confirmar?')) return;
+    }
+    state.currentBatch = {
+      modo: 'regularizacion',
+      bin_fisico: bin,
+      batch_id: shortId(),
+      escaneados: []
+    };
+    await persistBatch();
+    document.getElementById('reg-bin-display').textContent = bin;
+    document.getElementById('inp-reg-scan').value = '';
+    renderRegList();
+    show('screen-reg-scan');
+  }
+
+  async function addRegScan(loteRaw) {
+    if (!state.currentBatch || state.currentBatch.modo !== 'regularizacion') return;
+    const lote = normLote(loteRaw);
+    if (!lote || lote === '0') { flash('Lote vacio', 'err'); return; }
+
+    // Duplicado en este batch
+    const dup = state.currentBatch.escaneados.find((e) => e.lote === lote);
+    if (dup) {
+      flash('Lote ' + lote + ' ya escaneado en este estante', 'err');
+      document.getElementById('inp-reg-scan').value = '';
+      return;
+    }
+
+    const inv = await lookupInventario(lote);
+    const binFisico = state.currentBatch.bin_fisico;
+    let accion_calc;
+    if (!inv) {
+      accion_calc = 'huerfano';
+    } else if (normBin(inv.ubicacion || '') === normBin(binFisico)) {
+      accion_calc = 'noop';
+    } else {
+      accion_calc = 'mover';
+    }
+    state.currentBatch.escaneados.push({
+      lote: lote,
+      inv: inv || null,
+      accion_calc: accion_calc
+    });
+    await persistBatch();
+    document.getElementById('inp-reg-scan').value = '';
+    renderRegList();
+    if (accion_calc === 'noop') flash('✓ Ya estaba aqui', 'ok');
+    else if (accion_calc === 'huerfano') flash('⚠ Rollo huerfano (no en SAP)', '');
+    else flash('↻ Regularizara desde ' + inv.ubicacion, '');
+  }
+
+  function renderRegList() {
+    const cont = document.getElementById('reg-list-items');
+    const b = state.currentBatch;
+    if (!b || b.modo !== 'regularizacion') return;
+    const total = b.escaneados.length;
+    const mover = b.escaneados.filter((e) => e.accion_calc === 'mover').length;
+    const noop = b.escaneados.filter((e) => e.accion_calc === 'noop').length;
+    const huerf = b.escaneados.filter((e) => e.accion_calc === 'huerfano').length;
+    document.getElementById('reg-stats').innerHTML =
+      `<strong>${total}</strong> escaneados (` +
+      `<span style="color:var(--warn);">${mover} a regularizar</span>, ` +
+      `<span style="color:var(--accent);">${noop} en su lugar</span>, ` +
+      `<span style="color:var(--error);">${huerf} huerfanos</span>)`;
+
+    if (!total) {
+      cont.innerHTML = '<div class="empty-state">Escanea los rollos que veas en este estante</div>';
+      return;
+    }
+    cont.innerHTML = '';
+    b.escaneados.forEach((e, idx) => {
+      const div = document.createElement('div');
+      div.className = 'batch-item ' + e.accion_calc;
+      let tag, info;
+      if (e.accion_calc === 'noop') {
+        tag = '<span class="tag noop">✓ En su lugar</span>';
+        info = e.inv.producto + ' · ' + (e.inv.descripcion || '');
+      } else if (e.accion_calc === 'mover') {
+        tag = '<span class="tag mover">↻ Regularizar</span>';
+        info = 'SAP: ' + e.inv.ubicacion + ' → real: ' + b.bin_fisico;
+      } else {
+        tag = '<span class="tag huerfano">⚠ Huerfano</span>';
+        info = 'No esta en inventario SAP';
+      }
+      div.innerHTML = `
+        <div style="flex:1; min-width:0;">
+          <div class="lote">Lote ${e.lote}</div>
+          <div class="meta">${info}</div>
+        </div>
+        ${tag}
+        <button class="del" data-idx="${idx}" aria-label="Quitar">×</button>`;
+      cont.appendChild(div);
+    });
+    cont.querySelectorAll('.del').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const i = parseInt(btn.getAttribute('data-idx'), 10);
+        if (!isNaN(i)) {
+          state.currentBatch.escaneados.splice(i, 1);
+          await persistBatch();
+          renderRegList();
+        }
+      });
+    });
+  }
+
+  async function commitRegBatch() {
+    const b = state.currentBatch;
+    if (!b || b.modo !== 'regularizacion') return;
+    if (!b.escaneados.length) { flash('No has escaneado nada', 'err'); return; }
+    // Solo genera movimientos para mover/huerfano (noop no genera nada en SAP)
+    let n = 0;
+    for (const e of b.escaneados) {
+      if (e.accion_calc === 'noop') continue;
+      const mov = buildMov({
+        lote: e.lote,
+        producto: e.inv ? e.inv.producto : '',
+        descripcion: e.inv ? e.inv.descripcion : '',
+        bin_sap: e.inv ? e.inv.ubicacion : '',
+        bin_real: b.bin_fisico,
+        bin_destino: b.bin_fisico,
+        cantidad: e.inv ? e.inv.cantidad : '',
+        unidad: e.inv ? e.inv.unidad : '',
+        accion: 'regularizacion',
+        huerfano: e.accion_calc === 'huerfano',
+        discrepancia: true,
+        batch_id: b.batch_id,
+        timestamp: tsISO(new Date())
+      });
+      await pushMovimiento(mov);
+      n++;
+    }
+    state.currentBatch = null;
+    await persistBatch();
+    flash(`✓ Estante regularizado: ${n} movimientos registrados`, 'ok');
+    document.getElementById('inp-reg-bin').value = '';
+    show('screen-reg-bin');
+  }
+
+  async function cancelRegBatch() {
+    if (!state.currentBatch) { show('screen-reg-bin'); return; }
+    const n = state.currentBatch.escaneados.length;
+    if (n > 0 && !confirm(`¿Cancelar este estante? Se perderan ${n} rollos escaneados.`)) return;
+    state.currentBatch = null;
+    await persistBatch();
+    document.getElementById('inp-reg-bin').value = '';
+    show('screen-reg-bin');
+  }
+
+  // ============================================================
+  // Modo B: Traslado masivo desde ubicacion
+  // ============================================================
+  async function confirmBulkOrigin() {
+    const bin = normBin(document.getElementById('inp-bulk-origin').value);
+    if (!bin) { flash('Escanea el estante origen', 'err'); return; }
+    if (bin.length < 4) { flash('Estante demasiado corto', 'err'); return; }
+    if (binParecelote(bin)) {
+      if (!confirm('"' + bin + '" parece un numero de lote, no un estante. ¿Confirmar?')) return;
+    }
+    const rollosEsperados = await getRollosEnBin(bin);
+    if (!rollosEsperados.length) {
+      const ok = confirm('SAP no tiene rollos registrados en ' + bin + '.\n¿Continuar de todos modos? Tendras que escanear los rollos manualmente.');
+      if (!ok) return;
+    }
+    state.currentBatch = {
+      modo: 'masivo',
+      bin_origen: bin,
+      batch_id: shortId(),
+      candidatos: rollosEsperados.map((r) => ({
+        lote: r.lote,
+        producto: r.producto,
+        descripcion: r.descripcion,
+        cantidad: r.cantidad,
+        unidad: r.unidad,
+        ubicacion: r.ubicacion,
+        marcado: false,
+        fuente: 'precarga'
+      })),
+      bin_destino: null
+    };
+    await persistBatch();
+    document.getElementById('bulk-origin-display').textContent = bin;
+    document.getElementById('inp-bulk-scan').value = '';
+    renderBulkList();
+    show('screen-bulk-list');
+    flash(`${rollosEsperados.length} rollos esperados en ${bin}`, '');
+  }
+
+  async function addBulkScan(loteRaw) {
+    if (!state.currentBatch || state.currentBatch.modo !== 'masivo') return;
+    const lote = normLote(loteRaw);
+    if (!lote || lote === '0') { flash('Lote vacio', 'err'); return; }
+
+    // Existe en la lista de candidatos?
+    const existing = state.currentBatch.candidatos.find((c) => c.lote === lote);
+    if (existing) {
+      if (existing.marcado) {
+        flash('Lote ' + lote + ' ya estaba marcado', '');
+      } else {
+        existing.marcado = true;
+        flash('✓ ' + lote + ' marcado', 'ok');
+      }
+      await persistBatch();
+      document.getElementById('inp-bulk-scan').value = '';
+      renderBulkList();
+      return;
+    }
+
+    // No estaba en la lista → agregar como manual (huerfano en este bin)
+    const inv = await lookupInventario(lote);
+    state.currentBatch.candidatos.push({
+      lote: lote,
+      producto: inv ? inv.producto : '',
+      descripcion: inv ? inv.descripcion : '',
+      cantidad: inv ? inv.cantidad : '',
+      unidad: inv ? inv.unidad : '',
+      ubicacion: inv ? inv.ubicacion : '',
+      marcado: true,
+      fuente: 'manual'
+    });
+    await persistBatch();
+    document.getElementById('inp-bulk-scan').value = '';
+    renderBulkList();
+    if (!inv) flash('⚠ ' + lote + ' no esta en SAP (huerfano)', '');
+    else flash('+ ' + lote + ' agregado (SAP lo tenia en ' + (inv.ubicacion || 'otro estante') + ')', 'ok');
+  }
+
+  function renderBulkList() {
+    const b = state.currentBatch;
+    if (!b || b.modo !== 'masivo') return;
+    const cont = document.getElementById('bulk-list-items');
+    const total = b.candidatos.length;
+    const marcados = b.candidatos.filter((c) => c.marcado).length;
+    document.getElementById('bulk-stats').innerHTML =
+      `<strong>${marcados}</strong> marcados de <strong>${total}</strong> esperados`;
+
+    if (!total) {
+      cont.innerHTML = '<div class="empty-state">SAP no tiene rollos aqui. Escanea los que veas fisicamente.</div>';
+      return;
+    }
+    cont.innerHTML = '';
+    b.candidatos.forEach((c, idx) => {
+      const isManual = c.fuente === 'manual';
+      const isHuerf = isManual && !c.producto;
+      const div = document.createElement('div');
+      div.className = 'batch-item ' + (c.marcado ? (isHuerf ? 'huerfano' : 'noop') : 'unmarked');
+      let tag = '';
+      if (isHuerf) tag = '<span class="tag huerfano">⚠ Huerfano</span>';
+      else if (isManual) tag = '<span class="tag mover">+ Manual</span>';
+      const info = (c.producto || '') + (c.descripcion ? ' · ' + c.descripcion : '');
+      div.innerHTML = `
+        <input type="checkbox" data-idx="${idx}" ${c.marcado ? 'checked' : ''}>
+        <div style="flex:1; min-width:0;">
+          <div class="lote">Lote ${c.lote}</div>
+          <div class="meta">${info || '(sin info SAP)'}</div>
+        </div>
+        ${tag}`;
+      cont.appendChild(div);
+    });
+    cont.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+      cb.addEventListener('change', async () => {
+        const i = parseInt(cb.getAttribute('data-idx'), 10);
+        if (!isNaN(i)) {
+          state.currentBatch.candidatos[i].marcado = cb.checked;
+          await persistBatch();
+          renderBulkList();
+        }
+      });
+    });
+  }
+
+  function bulkContinueADest() {
+    const b = state.currentBatch;
+    if (!b || b.modo !== 'masivo') return;
+    const marcados = b.candidatos.filter((c) => c.marcado);
+    if (!marcados.length) { flash('Marca al menos un rollo', 'err'); return; }
+    document.getElementById('bulk-dest-summary').textContent = marcados.length + ' rollos';
+    document.getElementById('bulk-dest-origen').textContent = b.bin_origen;
+    document.getElementById('inp-bulk-dest').value = '';
+    show('screen-bulk-dest');
+  }
+
+  async function confirmBulkDest() {
+    const b = state.currentBatch;
+    if (!b || b.modo !== 'masivo') return;
+    const dest = normBin(document.getElementById('inp-bulk-dest').value);
+    if (!dest) { flash('Escanea el estante destino', 'err'); return; }
+    if (dest.length < 4) { flash('Estante destino demasiado corto', 'err'); return; }
+    if (binParecelote(dest)) {
+      if (!confirm('"' + dest + '" parece un numero de lote, no un estante. ¿Confirmar?')) return;
+    }
+    if (dest === b.bin_origen) {
+      flash('Origen y destino son el mismo estante. Cancela el batch o usa otro destino.', 'err');
+      return;
+    }
+    const marcados = b.candidatos.filter((c) => c.marcado);
+    if (!marcados.length) { flash('No hay rollos marcados', 'err'); return; }
+
+    b.bin_destino = dest;
+    await persistBatch();
+
+    let n = 0;
+    for (const c of marcados) {
+      const isHuerf = (c.fuente === 'manual') && !c.producto;
+      const mov = buildMov({
+        lote: c.lote,
+        producto: c.producto || '',
+        descripcion: c.descripcion || '',
+        bin_sap: c.ubicacion || '',
+        bin_real: b.bin_origen,  // operario lo encontro fisicamente en bin_origen
+        bin_destino: dest,
+        cantidad: c.cantidad || '',
+        unidad: c.unidad || '',
+        accion: 'traslado_masivo',
+        huerfano: isHuerf,
+        discrepancia: (c.fuente === 'manual') || (normBin(c.ubicacion || '') !== normBin(b.bin_origen)),
+        batch_id: b.batch_id,
+        timestamp: tsISO(new Date())
+      });
+      await pushMovimiento(mov);
+      n++;
+    }
+    state.currentBatch = null;
+    await persistBatch();
+    flash(`✓ Traslado masivo: ${n} rollos a ${dest}`, 'ok');
+    document.getElementById('inp-bulk-origin').value = '';
+    show('screen-bulk-origin');
+  }
+
+  async function cancelBulkBatch() {
+    if (!state.currentBatch) { show('screen-bulk-origin'); return; }
+    const marcados = state.currentBatch.candidatos.filter((c) => c.marcado).length;
+    if (marcados > 0 && !confirm(`¿Cancelar este estante? Se perderan ${marcados} rollos marcados.`)) return;
+    state.currentBatch = null;
+    await persistBatch();
+    document.getElementById('inp-bulk-origin').value = '';
+    show('screen-bulk-origin');
+  }
+
+  // ============================================================
   // Flujo de escaneo
   // ============================================================
   async function buscarLote(loteRaw) {
     const lote = normLote(loteRaw);
     if (!lote || lote === '0') { flash('Lote vacio', 'err'); return; }
-    const inv = await dbGet(STORES.inventario, lote);
-    if (!inv) {
-      flash('Lote ' + lote + ' no encontrado', 'err');
-      if (!confirm('Lote ' + lote + ' no esta en el inventario cargado. ¿Continuar de todos modos?')) return;
-      state.currentLote = {
-        lote: lote, producto: '', descripcion: '(no en inventario)',
-        ubicacion: '', cantidad: '', unidad: ''
-      };
-    } else {
-      state.currentLote = inv;
+
+    // Validacion 1: lote duplicado en la sesion actual
+    if (state.sesion && state.sesion.movimientos) {
+      const dup = state.sesion.movimientos.find((m) => m.lote === lote);
+      if (dup) {
+        const ok = confirm(
+          'Este lote ya esta en la sesion actual:\n\n' +
+          `  ${dup.bin_real || '?'} → ${dup.bin_destino || '?'}\n\n` +
+          '¿Estas seguro que quieres registrarlo de nuevo?'
+        );
+        if (!ok) {
+          document.getElementById('inp-lote').value = '';
+          return;
+        }
+      }
     }
-    state.currentMov = {
-      lote: state.currentLote.lote,
-      producto: state.currentLote.producto,
-      descripcion: state.currentLote.descripcion,
-      bin_sap: state.currentLote.ubicacion,
-      bin_real: null,
-      discrepancia: false,
-      bin_destino: null,
-      cantidad: state.currentLote.cantidad,
-      unidad: state.currentLote.unidad,
-      timestamp: null
-    };
-    document.getElementById('conf-lote').textContent = state.currentLote.lote;
-    document.getElementById('conf-producto').textContent = state.currentLote.producto || '(sin codigo)';
-    document.getElementById('conf-descripcion').textContent = state.currentLote.descripcion || '';
-    document.getElementById('conf-bin-sap').textContent = state.currentLote.ubicacion || '(sin ubicacion SAP)';
+
+    // Validacion 2: lote debe existir en el inventario SAP
+    const inv = await lookupInventario(lote);
+    if (!inv) {
+      flash(
+        'Lote ' + lote + ' no esta en el inventario SAP.\n' +
+        'No se puede mover. Pide al admin actualizar el inventario.',
+        'err'
+      );
+      document.getElementById('inp-lote').value = '';
+      try { document.getElementById('inp-lote').focus(); } catch (e) {}
+      return;
+    }
+
+    state.currentLote = inv;
+    state.currentMov = buildMov({
+      lote: inv.lote,
+      producto: inv.producto,
+      descripcion: inv.descripcion,
+      bin_sap: inv.ubicacion,
+      cantidad: inv.cantidad,
+      unidad: inv.unidad,
+      accion: 'traslado_individual'  // entry point siempre individual
+    });
+
+    // Caso especial: SAP no tiene ubicacion registrada → saltamos la pregunta SI/NO
+    if (!inv.ubicacion) {
+      state.currentMov.discrepancia = true;
+      document.getElementById('real-bin-sap').textContent = '(SAP no tiene ubicacion registrada)';
+      document.getElementById('inp-bin-real').value = '';
+      show('screen-real-bin');
+      flash('SAP no tiene estante para este lote. Escanea donde esta fisicamente.', '');
+      return;
+    }
+
+    document.getElementById('conf-lote').textContent = inv.lote;
+    document.getElementById('conf-producto').textContent = inv.producto || '(sin codigo)';
+    document.getElementById('conf-descripcion').textContent = inv.descripcion || '';
+    document.getElementById('conf-bin-sap').textContent = inv.ubicacion;
     show('screen-confirm-bin');
   }
 
@@ -1144,10 +1602,19 @@
     }
   }
 
+  // Validacion ligera de bin: ¿parece un numero de lote en vez de un estante?
+  function binParecelote(v) {
+    return /^\d{3,}$/.test(v); // 3+ digitos sin guiones → probablemente un lote
+  }
+
   function confirmBinReal() {
     if (!state.currentMov) return;
     const v = normBin(document.getElementById('inp-bin-real').value);
-    if (!v) { flash('Escanea el bin real', 'err'); return; }
+    if (!v) { flash('Escanea el estante real', 'err'); return; }
+    if (v.length < 4) { flash('Estante demasiado corto', 'err'); return; }
+    if (binParecelote(v)) {
+      if (!confirm('"' + v + '" parece un numero de lote, no un estante (ej: A001-08-08-02). ¿Confirmar?')) return;
+    }
     state.currentMov.bin_real = v;
     state.currentMov.discrepancia = (v !== state.currentMov.bin_sap);
     goToDest();
@@ -1163,25 +1630,33 @@
   async function confirmMovimiento() {
     if (!state.currentMov) return;
     const dest = normBin(document.getElementById('inp-bin-dest').value);
-    if (!dest) { flash('Escanea el bin destino', 'err'); return; }
+    if (!dest) { flash('Escanea el estante destino', 'err'); return; }
+    if (dest.length < 4) { flash('Estante destino demasiado corto', 'err'); return; }
+    if (binParecelote(dest)) {
+      if (!confirm('"' + dest + '" parece un numero de lote, no un estante (ej: A001-08-08-02). ¿Confirmar?')) return;
+    }
     if (dest === state.currentMov.bin_real) {
-      if (!confirm('El bin destino es igual al origen. ¿Confirmar de todos modos?')) return;
+      if (!confirm('El estante destino es igual al origen. ¿Confirmar de todos modos?')) return;
     }
     state.currentMov.bin_destino = dest;
     state.currentMov.timestamp = tsISO(new Date());
-    state.sesion.movimientos.push(state.currentMov);
-    await persistSesion();
+    await pushMovimiento(state.currentMov);
     flash('Movimiento agregado ✓', 'ok');
     state.currentLote = null;
     state.currentMov = null;
     document.getElementById('inp-lote').value = '';
-    updateMovsCount();
     show('screen-scan-lote');
   }
 
   // ============================================================
   // Lista
   // ============================================================
+  function labelAccion(accion) {
+    if (accion === 'traslado_masivo') return 'MASIVO';
+    if (accion === 'regularizacion') return 'REG';
+    return 'IND';
+  }
+
   function renderLista() {
     const movs = (state.sesion && state.sesion.movimientos) || [];
     const total = movs.length;
@@ -1193,14 +1668,32 @@
       cont.innerHTML = '<div class="empty-state">No hay movimientos registrados aun</div>';
       return;
     }
-    cont.innerHTML = '';
+
+    // Mini-resumen arriba
+    const r = WMS.resumenPorAccion(movs);
+    const resumenHtml =
+      `<div class="card" style="text-align:center; font-size:13px; padding:8px 12px;">` +
+      `<span style="color:var(--accent-2);"><strong>${r.traslado_individual}</strong> individuales</span> · ` +
+      `<span style="color:var(--warn);"><strong>${r.traslado_masivo}</strong> masivos</span> · ` +
+      `<span style="color:var(--accent);"><strong>${r.regularizacion}</strong> regularizaciones</span>` +
+      `</div>`;
+    cont.innerHTML = resumenHtml;
+
     movs.forEach((m, idx) => {
       const div = document.createElement('div');
-      div.className = 'mov-item' + (m.discrepancia ? ' discrep' : '');
+      const accion = m.accion || 'traslado_individual';
+      let cls = 'mov-item';
+      if (m.huerfano) cls += ' discrep'; // huerfanos en rojo
+      else if (m.discrepancia) cls += ' discrep';
+      div.className = cls;
+      const accionTag = `<span class="badge" style="background:var(--surface-2); color:var(--text-dim);">${labelAccion(accion)}</span>`;
+      const huerfBadge = m.huerfano ? '<span class="badge err">⚠ Huerfano</span>' : '';
+      const discBadge = (!m.huerfano && m.discrepancia) ? '<span class="badge err">⚠ Discrep</span>' : '';
+      const batchTag = m.batch_id ? `<span class="badge" style="background:var(--surface-2); color:var(--text-dim);">#${m.batch_id}</span>` : '';
       div.innerHTML = `
         <div class="info">
-          <div class="lote">Lote ${m.lote}${m.discrepancia ? '<span class="badge err">⚠ Discrepancia</span>' : ''}</div>
-          <div class="path">${m.bin_real || '?'} → ${m.bin_destino || '?'}</div>
+          <div class="lote">Lote ${m.lote} ${accionTag} ${huerfBadge} ${discBadge} ${batchTag}</div>
+          <div class="path">${m.bin_real || (m.bin_sap || '?')} → ${m.bin_destino || '?'}</div>
           <div class="path" style="font-size:12px;">${m.producto || ''} ${m.descripcion ? '· ' + m.descripcion : ''}</div>
         </div>
         <button class="del" data-idx="${idx}" aria-label="Eliminar">×</button>`;
@@ -1222,22 +1715,6 @@
   // ============================================================
   // Finalizar
   // ============================================================
-  function buildJSON() {
-    const s = state.sesion;
-    const movs = s.movimientos || [];
-    return {
-      id: s.id,
-      operario: s.operario,
-      fecha: s.fecha,
-      hora_inicio: s.hora_inicio,
-      hora_fin: s.hora_fin,
-      dispositivo: s.dispositivo,
-      total_movimientos: movs.length,
-      total_discrepancias: movs.filter((m) => m.discrepancia).length,
-      movimientos: movs
-    };
-  }
-
   function renderFinalize() {
     const s = state.sesion;
     if (!s) return;
@@ -1248,294 +1725,66 @@
     document.getElementById('fin-operario').textContent = s.operario;
     document.getElementById('fin-inicio').textContent = s.hora_inicio;
     document.getElementById('fin-fin').textContent = s.hora_fin;
-    document.getElementById('sync-status').textContent = 'Pendiente';
+    document.getElementById('sync-status').textContent = 'Listo para guardar';
     document.getElementById('sync-status-card').style.borderColor = '';
+    // Mini-resumen por accion
+    const r = WMS.resumenPorAccion(movs);
+    const finAccionEl = document.getElementById('fin-resumen-accion');
+    if (finAccionEl) {
+      finAccionEl.innerHTML =
+        `<strong>${r.traslado_individual}</strong> individuales · ` +
+        `<strong>${r.traslado_masivo}</strong> masivos · ` +
+        `<strong>${r.regularizacion}</strong> regularizaciones`;
+    }
   }
 
+  // Guarda la sesion como pendiente local. Usa WMS para construir el JSON de auditoria.
+  // El JSON guardado en `pendientes` es session-like compatible con WMS.uploadSesionToGitHub.
   async function finalizeAndStage() {
     if (!state.sesion) return null;
     if (!state.sesion.hora_fin) state.sesion.hora_fin = horaISO(new Date());
     await persistSesion();
-    const json = buildJSON();
+    const sessionLike = WMS.makeAuditoriaFromSession(state.sesion);
     await dbPut(STORES.pendientes, {
-      id: json.id, json: json, status: 'pendiente', created_at: tsISO(new Date())
+      id: sessionLike.id, json: sessionLike, status: 'pendiente', created_at: tsISO(new Date())
     });
-    await refreshPendingCount();
-    return json;
+    return sessionLike;
   }
 
-  // ============================================================
-  // GitHub sync
-  // ============================================================
-  async function uploadToGitHub(json) {
-    const cfg = state.config;
-    if (!cfg.repo || !cfg.token) throw new Error('GitHub no configurado');
-    if (!navigator.onLine) throw new Error('Sin conexion a internet');
-    const safeOp = (json.operario || 'sin_operario').replace(/[^a-zA-Z0-9_-]+/g, '_');
-    const filename = `movimientos_${safeOp}_${Date.now()}.json`;
-    const path = `pendientes/${filename}`;
-    const content = b64encodeUtf8(JSON.stringify(json, null, 2));
-    const url = `https://api.github.com/repos/${cfg.repo}/contents/${path}`;
-    const body = {
-      message: `mov: ${filename}`,
-      content: content,
-      branch: cfg.branch || 'main'
-    };
-    const resp = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Authorization': 'token ' + cfg.token,
-        'Accept': 'application/vnd.github+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-    if (!resp.ok) {
-      let detail = '';
-      try { const j = await resp.json(); detail = j.message || ''; } catch(e){}
-      throw new Error('GitHub ' + resp.status + (detail ? ': ' + detail : ''));
-    }
-    return await resp.json();
-  }
-
-  // Lectura/escritura generica de archivos en el repo
-  async function getGitHubFile(path) {
-    const cfg = state.config;
-    if (!cfg.repo || !cfg.token) throw new Error('GitHub no configurado');
-    const url = `https://api.github.com/repos/${cfg.repo}/contents/${path}?ref=${encodeURIComponent(cfg.branch || 'main')}&_=${Date.now()}`;
-    const resp = await fetch(url, {
-      headers: {
-        'Authorization': 'token ' + cfg.token,
-        'Accept': 'application/vnd.github+json'
-      }
-    });
-    if (resp.status === 404) return null;
-    if (!resp.ok) {
-      let detail = '';
-      try { const j = await resp.json(); detail = j.message || ''; } catch(e){}
-      throw new Error('GitHub GET ' + resp.status + (detail ? ': ' + detail : ''));
-    }
-    const j = await resp.json();
-    return { sha: j.sha, content: b64decodeUtf8(j.content || '') };
-  }
-
-  async function putGitHubFile(path, contentText, sha, message) {
-    const cfg = state.config;
-    if (!cfg.repo || !cfg.token) throw new Error('GitHub no configurado');
-    if (!navigator.onLine) throw new Error('Sin conexion');
-    const url = `https://api.github.com/repos/${cfg.repo}/contents/${path}`;
-    const body = {
-      message: message || ('upd: ' + path),
-      content: b64encodeUtf8(contentText),
-      branch: cfg.branch || 'main'
-    };
-    if (sha) body.sha = sha;
-    const resp = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Authorization': 'token ' + cfg.token,
-        'Accept': 'application/vnd.github+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-    if (!resp.ok) {
-      let detail = '';
-      try { const j = await resp.json(); detail = j.message || ''; } catch(e){}
-      throw new Error('GitHub PUT ' + resp.status + (detail ? ': ' + detail : ''));
-    }
-    return await resp.json();
-  }
-
-  // Publicar inventario local → GitHub (inventario/actual.json)
-  async function pushInventoryToGitHub() {
-    const items = await dbGetAll(STORES.inventario);
-    if (!items.length) throw new Error('No hay inventario local para publicar');
-    const payload = {
-      updated_at: tsISO(new Date()),
-      count: items.length,
-      items: items
-    };
-    const content = JSON.stringify(payload, null, 2);
-    if (content.length > 900000) {
-      throw new Error('Inventario muy grande (' + Math.round(content.length/1024) + ' KB). Limite Contents API ~1MB');
-    }
-    let sha = null;
-    try {
-      const existing = await getGitHubFile('inventario/actual.json');
-      if (existing) sha = existing.sha;
-    } catch (e) { /* si falla GET, intentamos PUT sin sha */ }
-    await putGitHubFile(
-      'inventario/actual.json',
-      content,
-      sha,
-      'inv: actualiza inventario (' + items.length + ' rollos)'
-    );
-    await dbPut(STORES.config, { key: 'inventario_global_fecha', value: payload.updated_at });
-    return payload;
-  }
-
-  // Descargar inventario global → IndexedDB
-  async function pullInventoryFromGitHub() {
-    const file = await getGitHubFile('inventario/actual.json');
-    if (!file) throw new Error('No hay inventario publicado en GitHub');
-    let data;
-    try { data = JSON.parse(file.content); }
-    catch (e) { throw new Error('Inventario en GitHub esta corrupto'); }
-    if (!data || !Array.isArray(data.items)) throw new Error('Formato de inventario invalido');
-    await dbClear(STORES.inventario);
-    for (const it of data.items) {
-      if (it && it.lote) await dbPut(STORES.inventario, it);
-    }
-    await dbPut(STORES.config, { key: 'inventario_fecha', value: data.updated_at });
-    await dbPut(STORES.config, { key: 'inventario_count', value: data.items.length });
-    await dbPut(STORES.config, { key: 'inventario_global_fecha', value: data.updated_at });
-    return data;
-  }
-
-  // Devuelve fecha publicada en GitHub (sin descargar todo el archivo si ya esta al dia)
-  async function getGithubInventoryDate() {
-    try {
-      const file = await getGitHubFile('inventario/actual.json');
-      if (!file) return null;
-      const data = JSON.parse(file.content);
-      return { updated_at: data.updated_at, count: data.count, _raw: data };
-    } catch (e) { return null; }
-  }
-
-  async function syncCurrentSession() {
-    if (!state.sesion) { flash('No hay sesion activa', 'err'); return; }
-    if (!state.config.repo || !state.config.token) {
-      flash('GitHub no configurado. Contacta al administrador.', 'err');
-      return;
-    }
-    const card = document.getElementById('sync-status-card');
-    const st = document.getElementById('sync-status');
-    st.textContent = '🟡 Sincronizando...';
-    card.style.borderColor = 'var(--warn)';
-    try {
-      const json = await finalizeAndStage();
-      await uploadToGitHub(json);
-      await dbDelete(STORES.pendientes, json.id);
-      st.textContent = '🟢 Sincronizado con GitHub';
-      card.style.borderColor = 'var(--accent)';
-      flash('Sincronizado ✓', 'ok');
-      await refreshPendingCount();
-    } catch (e) {
-      st.textContent = '🟡 Guardado offline (' + e.message + ')';
-      card.style.borderColor = 'var(--warn)';
-      flash('No se pudo subir: ' + e.message, 'err');
-    }
-  }
-
-  async function syncAllPending() {
-    const all = await dbGetAll(STORES.pendientes);
-    if (!all.length) { flash('No hay pendientes', 'ok'); return; }
-    if (!navigator.onLine) { flash('Sin internet', 'err'); return; }
-    if (!state.config.repo || !state.config.token) {
-      flash('Configura GitHub primero', 'err');
-      return;
-    }
-    let ok = 0, fail = 0;
-    for (const it of all) {
-      try {
-        await uploadToGitHub(it.json);
-        await dbDelete(STORES.pendientes, it.id);
-        ok++;
-      } catch (e) { fail++; }
-    }
-    flash(`Sync: ${ok} OK, ${fail} fallaron`, fail ? 'err' : 'ok');
-    await refreshPendingCount();
-  }
-
-  async function refreshPendingCount() {
-    const c = await dbCount(STORES.pendientes);
-    const el = document.getElementById('adm-pending-count');
-    if (el) el.textContent = c;
-  }
-
-  // ============================================================
-  // Admin
-  // ============================================================
-  function openAdminLogin() {
-    document.getElementById('adm-user').value = '';
-    document.getElementById('adm-pass').value = '';
-    document.getElementById('modal-admin-login').classList.add('show');
-    setTimeout(() => {
-      try { document.getElementById('adm-user').focus(); } catch(e){}
-    }, 60);
-  }
-  function closeAdminLogin() {
-    document.getElementById('modal-admin-login').classList.remove('show');
-  }
-  function tryAdminLogin() {
-    const u = document.getElementById('adm-user').value.trim();
-    const p = document.getElementById('adm-pass').value;
-    if (u === ADMIN_USER && p === ADMIN_PASS) {
-      state.isAdmin = true;
-      closeAdminLogin();
-      openAdminPanel();
-    } else {
-      flash('Credenciales incorrectas', 'err');
-    }
-  }
-  async function openAdminPanel() {
-    await loadConfig();
-    document.getElementById('cfg-repo').value = state.config.repo || '';
-    document.getElementById('cfg-branch').value = state.config.branch || 'main';
-    document.getElementById('cfg-token').value = state.config.token || '';
-    updateGithubConfigUI();
-    await refreshInventoryStatus();
-    await refreshPendingCount();
-    renderAdminSessionCard();
-    show('screen-admin');
-  }
-  function renderAdminSessionCard() {
-    const info = document.getElementById('adm-session-info');
-    const btn = document.getElementById('adm-discard-session');
-    if (state.sesion) {
-      const n = (state.sesion.movimientos || []).length;
-      info.innerHTML = `<strong>${state.sesion.operario}</strong> — ${n} movimientos<br>` +
-                       `<span style="font-size:14px;color:var(--text-dim);">Inicio: ${state.sesion.fecha} ${state.sesion.hora_inicio}</span>`;
-      btn.style.display = '';
-    } else {
-      info.textContent = 'No hay sesion activa';
-      btn.style.display = 'none';
-    }
-  }
+  // GitHub sync, KPIs, builders ejecutable/auditoria, helpers de fetch/base64
+  // y todo el dashboard viven en common.js (WMS.*) y admin.html.
+  // El operario solo llama WMS.uploadSesionToGitHub(state.config, sessionLike).
 
   // ============================================================
   // Event listeners
   // ============================================================
   document.addEventListener('DOMContentLoaded', async () => {
     refreshNetStatus();
-    await loadConfig();
+    await loadConfigIntoState();
     await loadSesionActual();
+    await loadBatch();
     await refreshInventoryStatus();
 
-    // Auto-pull inventario desde GitHub al iniciar (no bloqueante)
+    // Auto-pull inventario desde GitHub al iniciar (no bloqueante).
+    // Usa WMS.pullInventoryFromGitHub que tiene lock + transaccion atomica,
+    // asi NO se cruza con un parseExcel/push manual que se dispare en paralelo.
     if (state.config.repo && state.config.token && navigator.onLine) {
       (async () => {
         try {
-          const ghMeta = await getGithubInventoryDate();
+          const ghMeta = await WMS.getGithubInventoryDate(state.config);
           if (!ghMeta) return;
-          const localFecha = await dbGet(STORES.config, 'inventario_fecha');
-          const localStr = localFecha ? localFecha.value : '';
+          // Solo bajamos si el published_at en GitHub difiere del que tenemos local
+          const localPublishedRec = await dbGet(STORES.config, 'inventario_published_at')
+            || await dbGet(STORES.config, 'inventario_fecha');
+          const localPublished = (localPublishedRec && localPublishedRec.value) || '';
           const localCount = await dbCount(STORES.inventario);
-          if (localCount === 0 || ghMeta.updated_at !== localStr) {
-            const data = ghMeta._raw;
-            await dbClear(STORES.inventario);
-            for (const it of data.items) {
-              if (it && it.lote) await dbPut(STORES.inventario, it);
-            }
-            await dbPut(STORES.config, { key: 'inventario_fecha', value: data.updated_at });
-            await dbPut(STORES.config, { key: 'inventario_count', value: data.items.length });
-            await dbPut(STORES.config, { key: 'inventario_global_fecha', value: data.updated_at });
-            flash('Inventario actualizado desde GitHub: ' + data.items.length + ' rollos', 'ok');
+          if (localCount === 0 || ghMeta.updated_at !== localPublished) {
+            const data = await WMS.pullInventoryFromGitHub(state.config);
+            flash('Inventario actualizado: ' + data.items.length + ' rollos', 'ok');
             await refreshInventoryStatus();
           }
         } catch (e) {
-          // silencioso: si falla, queda con lo local
+          console.warn('Auto-pull falló:', e.message);
         }
       })();
     }
@@ -1547,14 +1796,40 @@
     // Sesion en curso → ofrecer retomar
     if (state.sesion && state.sesion.operario) {
       const movs = (state.sesion.movimientos || []).length;
-      if (confirm(`Hay una sesion en curso de ${state.sesion.operario} con ${movs} movimientos. ¿Retomar?`)) {
+      const batchInfo = state.currentBatch
+        ? `\n\nAdemas hay un batch en progreso del modo ${state.currentBatch.modo}.`
+        : '';
+      if (confirm(`Hay una sesion en curso de ${state.sesion.operario} con ${movs} movimientos.${batchInfo}\n\n¿Retomar?`)) {
         document.getElementById('top-sub').textContent = state.sesion.operario;
         updateMovsCount();
         const invCount = await dbCount(STORES.inventario);
-        if (invCount > 0) show('screen-scan-lote');
-        else show('screen-identify');
+        if (invCount === 0) {
+          show('screen-identify');
+        } else if (state.currentBatch && state.currentBatch.modo === 'masivo') {
+          state.modoActivo = 'masivo';
+          document.getElementById('bulk-origin-display').textContent = state.currentBatch.bin_origen;
+          renderBulkList();
+          // Si tiene bin_destino ya elegido, va a la pantalla de destino
+          if (state.currentBatch.bin_destino) {
+            document.getElementById('bulk-dest-summary').textContent =
+              state.currentBatch.candidatos.filter(c => c.marcado).length + ' rollos';
+            document.getElementById('bulk-dest-origen').textContent = state.currentBatch.bin_origen;
+            show('screen-bulk-dest');
+          } else {
+            show('screen-bulk-list');
+          }
+        } else if (state.currentBatch && state.currentBatch.modo === 'regularizacion') {
+          state.modoActivo = 'regularizacion';
+          document.getElementById('reg-bin-display').textContent = state.currentBatch.bin_fisico;
+          renderRegList();
+          show('screen-reg-scan');
+        } else {
+          goToModeSelect();
+        }
       } else {
         await clearSesionActual();
+        state.currentBatch = null;
+        await persistBatch();
         show('screen-identify');
       }
     } else {
@@ -1562,36 +1837,9 @@
     }
 
     // ---- Topbar admin ----
-    document.getElementById('btn-admin').addEventListener('click', openAdminLogin);
-
-    // ---- Modal login admin ----
-    document.getElementById('adm-login-ok').addEventListener('click', tryAdminLogin);
-    document.getElementById('adm-login-cancel').addEventListener('click', closeAdminLogin);
-    document.getElementById('adm-pass').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); tryAdminLogin(); }
-    });
-    document.getElementById('modal-admin-login').addEventListener('click', (e) => {
-      if (e.target.id === 'modal-admin-login') closeAdminLogin();
-    });
-
-    // ---- Identificacion: boton Actualizar inventario ----
-    document.getElementById('btn-refresh-inv').addEventListener('click', async () => {
-      if (!state.config.repo || !state.config.token) {
-        flash('GitHub no configurado. Contacta al administrador.', 'err');
-        return;
-      }
-      if (!navigator.onLine) { flash('Sin conexion', 'err'); return; }
-      const btn = document.getElementById('btn-refresh-inv');
-      btn.disabled = true;
-      btn.textContent = 'Descargando...';
-      try {
-        const d = await pullInventoryFromGitHub();
-        flash(`✓ Inventario actualizado: ${d.items.length} rollos`, 'ok');
-      } catch (err) {
-        flash('Error: ' + err.message, 'err');
-      } finally {
-        await refreshInventoryStatus();
-      }
+    // Boton engranaje → admin.html (admin esta en archivo separado)
+    document.getElementById('btn-admin').addEventListener('click', () => {
+      window.location.href = 'admin.html';
     });
 
     // ---- Identificacion ----
@@ -1606,120 +1854,60 @@
       await startSesion(nom);
       document.getElementById('top-sub').textContent = nom;
       updateMovsCount();
-      show('screen-scan-lote');
+      goToModeSelect();
     });
 
-    // ---- Admin panel ----
-    document.getElementById('adm-exit').addEventListener('click', () => {
-      state.isAdmin = false;
-      show('screen-identify');
+    // ---- Seleccion de modo ----
+    document.querySelectorAll('.mode-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const modo = btn.getAttribute('data-modo');
+        seleccionarModo(modo);
+      });
     });
-    document.getElementById('inp-excel').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      try {
-        flash('Procesando Excel...', '');
-        const n = await parseExcel(file);
-        flash(`Inventario local: ${n} registros`, 'ok');
-        await refreshInventoryStatus();
-        // Auto-publicar a GitHub si esta configurado y online
-        if (state.config.repo && state.config.token && navigator.onLine) {
-          try {
-            flash('Publicando a GitHub...', '');
-            const r = await pushInventoryToGitHub();
-            flash(`✓ Publicado a GitHub (${r.count} rollos)`, 'ok');
-            await refreshInventoryStatus();
-          } catch (err) {
-            flash('Local OK pero falla GitHub: ' + err.message, 'err');
-          }
-        } else if (!state.config.repo || !state.config.token) {
-          flash('Local OK. Configura GitHub para publicar.', '');
-        } else {
-          flash('Local OK. Sin conexion, no publicado.', '');
-        }
-      } catch (err) {
-        flash('Error al leer Excel: ' + err.message, 'err');
-      } finally {
-        e.target.value = '';
-      }
+    document.getElementById('btn-mode-finalizar').addEventListener('click', () => {
+      renderFinalize();
+      show('screen-finalize');
     });
 
-    // Botones admin: pull/push inventario manual
-    document.getElementById('adm-btn-pull-inv').addEventListener('click', async () => {
-      if (!state.config.repo || !state.config.token) { flash('Configura GitHub primero', 'err'); return; }
-      if (!navigator.onLine) { flash('Sin conexion', 'err'); return; }
-      try {
-        flash('Descargando inventario...', '');
-        const d = await pullInventoryFromGitHub();
-        flash(`✓ Bajado: ${d.items.length} rollos`, 'ok');
-        await refreshInventoryStatus();
-      } catch (err) {
-        flash('Error: ' + err.message, 'err');
-      }
+    // Botones "Cambiar modo" en cada flujo
+    document.getElementById('btn-change-mode-a').addEventListener('click', goToModeSelect);
+    document.getElementById('btn-bulk-change-mode').addEventListener('click', goToModeSelect);
+    document.getElementById('btn-reg-change-mode').addEventListener('click', goToModeSelect);
+
+    // Botones Finalizar turno en modos B y C
+    document.getElementById('btn-bulk-finalizar').addEventListener('click', () => { renderFinalize(); show('screen-finalize'); });
+    document.getElementById('btn-reg-finalizar').addEventListener('click', () => { renderFinalize(); show('screen-finalize'); });
+
+    // ---- Modo C: Regularizacion ----
+    const inpRegBin = document.getElementById('inp-reg-bin');
+    inpRegBin.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); confirmRegBin(); } });
+    document.getElementById('btn-reg-bin-go').addEventListener('click', confirmRegBin);
+
+    const inpRegScan = document.getElementById('inp-reg-scan');
+    inpRegScan.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); addRegScan(inpRegScan.value); }
     });
-    document.getElementById('adm-btn-push-inv').addEventListener('click', async () => {
-      if (!state.config.repo || !state.config.token) { flash('Configura GitHub primero', 'err'); return; }
-      if (!navigator.onLine) { flash('Sin conexion', 'err'); return; }
-      try {
-        flash('Publicando inventario...', '');
-        const r = await pushInventoryToGitHub();
-        flash(`✓ Publicado: ${r.count} rollos`, 'ok');
-        await refreshInventoryStatus();
-      } catch (err) {
-        flash('Error: ' + err.message, 'err');
-      }
+    document.getElementById('btn-reg-finish-bin').addEventListener('click', commitRegBatch);
+    document.getElementById('btn-reg-cancel').addEventListener('click', cancelRegBatch);
+
+    // ---- Modo B: Traslado masivo ----
+    const inpBulkOrigin = document.getElementById('inp-bulk-origin');
+    inpBulkOrigin.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); confirmBulkOrigin(); } });
+    document.getElementById('btn-bulk-origin-go').addEventListener('click', confirmBulkOrigin);
+
+    const inpBulkScan = document.getElementById('inp-bulk-scan');
+    inpBulkScan.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); addBulkScan(inpBulkScan.value); }
     });
-    document.getElementById('cfg-save').addEventListener('click', async () => {
-      const repo = document.getElementById('cfg-repo').value.trim();
-      const branch = document.getElementById('cfg-branch').value.trim() || 'main';
-      const token = document.getElementById('cfg-token').value.trim();
-      if (!repo || !token) { flash('Repo y token requeridos', 'err'); return; }
-      if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { flash('Formato repo: usuario/repo', 'err'); return; }
-      await saveConfig({ repo, branch, token });
-      updateGithubConfigUI();
-      flash('Configuracion guardada', 'ok');
-    });
-    document.getElementById('cfg-test').addEventListener('click', async () => {
-      const repo = document.getElementById('cfg-repo').value.trim();
-      const branch = document.getElementById('cfg-branch').value.trim() || 'main';
-      const token = document.getElementById('cfg-token').value.trim();
-      if (!repo || !token) { flash('Llena repo y token antes de probar', 'err'); return; }
-      const prev = { ...state.config };
-      state.config = { repo, branch, token };
-      const status = document.getElementById('cfg-status');
-      status.innerHTML = '<span style="color:var(--warn);">Probando...</span>';
-      try {
-        const info = await testGithubConnection();
-        status.innerHTML = '<span style="color:var(--accent);">✓ OK: ' + info.full_name +
-                           (info.private ? ' (privado)' : ' (publico)') + '</span>';
-        flash('Conexion OK con ' + info.full_name, 'ok');
-      } catch (e) {
-        status.innerHTML = '<span style="color:var(--error);">✗ ' + e.message + '</span>';
-        state.config = prev;
-        flash('Fallo: ' + e.message, 'err');
-      }
-    });
-    document.getElementById('cfg-clear').addEventListener('click', async () => {
-      if (!confirm('¿Borrar configuracion de GitHub?')) return;
-      await dbDelete(STORES.config, 'repo');
-      await dbDelete(STORES.config, 'branch');
-      await dbDelete(STORES.config, 'token');
-      state.config = { repo: '', branch: 'main', token: '' };
-      document.getElementById('cfg-repo').value = '';
-      document.getElementById('cfg-branch').value = 'main';
-      document.getElementById('cfg-token').value = '';
-      updateGithubConfigUI();
-      flash('Configuracion borrada', 'ok');
-    });
-    document.getElementById('adm-btn-sync-pending').addEventListener('click', syncAllPending);
-    document.getElementById('adm-discard-session').addEventListener('click', async () => {
-      if (!confirm('¿Descartar la sesion en curso? Se perderan los movimientos no sincronizados.')) return;
-      await clearSesionActual();
-      document.getElementById('top-sub').textContent = 'TEXCORP';
-      updateMovsCount();
-      renderAdminSessionCard();
-      flash('Sesion descartada', 'ok');
-    });
+    document.getElementById('btn-bulk-continue').addEventListener('click', bulkContinueADest);
+    document.getElementById('btn-bulk-cancel').addEventListener('click', cancelBulkBatch);
+
+    const inpBulkDest = document.getElementById('inp-bulk-dest');
+    inpBulkDest.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); confirmBulkDest(); } });
+    document.getElementById('btn-bulk-dest-confirm').addEventListener('click', confirmBulkDest);
+    document.getElementById('btn-bulk-back-list').addEventListener('click', () => { renderBulkList(); show('screen-bulk-list'); });
+
+    // (Admin movido a admin.html — sus listeners ya no van aqui)
 
     // ---- Escanear lote ----
     const inpLote = document.getElementById('inp-lote');
@@ -1746,7 +1934,18 @@
       if (e.key === 'Enter') { e.preventDefault(); confirmBinReal(); }
     });
     document.getElementById('btn-conf-bin-real').addEventListener('click', confirmBinReal);
-    document.getElementById('btn-back-confirm').addEventListener('click', () => show('screen-confirm-bin'));
+    document.getElementById('btn-back-confirm').addEventListener('click', () => {
+      // Si el lote no tenia bin SAP, no tiene sentido volver a confirm-bin (estaria vacio).
+      // Volvemos al escaneo del lote.
+      if (state.currentMov && !state.currentMov.bin_sap) {
+        state.currentLote = null;
+        state.currentMov = null;
+        document.getElementById('inp-lote').value = '';
+        show('screen-scan-lote');
+      } else {
+        show('screen-confirm-bin');
+      }
+    });
 
     // ---- Bin destino ----
     const inpDest = document.getElementById('inp-bin-dest');
@@ -1760,21 +1959,77 @@
     });
 
     // ---- Lista ----
-    document.getElementById('btn-back-scan').addEventListener('click', () => show('screen-scan-lote'));
+    document.getElementById('btn-back-scan').addEventListener('click', () => {
+      // Vuelve a la pantalla activa del modo seleccionado
+      if (state.modoActivo === 'masivo') {
+        if (state.currentBatch && state.currentBatch.modo === 'masivo') {
+          renderBulkList(); show('screen-bulk-list');
+        } else {
+          show('screen-bulk-origin');
+        }
+      } else if (state.modoActivo === 'regularizacion') {
+        if (state.currentBatch && state.currentBatch.modo === 'regularizacion') {
+          renderRegList(); show('screen-reg-scan');
+        } else {
+          show('screen-reg-bin');
+        }
+      } else {
+        show('screen-scan-lote');
+      }
+    });
     document.getElementById('btn-finalize-from-list').addEventListener('click', () => { renderFinalize(); show('screen-finalize'); });
 
     // ---- Finalizar ----
-    document.getElementById('btn-sync-now').addEventListener('click', syncCurrentSession);
     document.getElementById('btn-back-to-list').addEventListener('click', () => { renderLista(); show('screen-list'); });
     document.getElementById('btn-end-session').addEventListener('click', async () => {
-      if (!confirm('¿Terminar sesion? Los movimientos quedan guardados localmente.')) return;
-      if (state.sesion && (state.sesion.movimientos || []).length > 0) {
-        const existing = await dbGet(STORES.pendientes, state.sesion.id);
-        if (!existing) {
-          await finalizeAndStage();
-        }
+      const movs = (state.sesion && state.sesion.movimientos) ? state.sesion.movimientos.length : 0;
+      if (movs === 0) {
+        if (!confirm('No hay movimientos en esta sesion. ¿Cerrar sin guardar nada?')) return;
+        await clearSesionActual();
+        document.getElementById('top-sub').textContent = 'TEXCORP';
+        document.getElementById('inp-operario').value = '';
+        updateMovsCount();
+        show('screen-identify');
+        return;
       }
+      if (!confirm('¿Guardar y terminar el turno?')) return;
+
+      const card = document.getElementById('sync-status-card');
+      const st = document.getElementById('sync-status');
+      st.textContent = 'Guardando localmente...';
+      card.style.borderColor = 'var(--warn)';
+
+      // 1) Siempre guardar local (pendientes)
+      try {
+        const existing = await dbGet(STORES.pendientes, state.sesion.id);
+        if (!existing) await finalizeAndStage();
+      } catch (e) {
+        st.textContent = '✗ Error guardando local: ' + e.message;
+        card.style.borderColor = 'var(--error)';
+        return;
+      }
+
+      // 2) Intentar sincronizar en segundo plano (transparente)
+      let syncMsg = 'Guardado. Se subira cuando haya conexion.';
+      if (navigator.onLine && state.config.repo && state.config.token) {
+        st.textContent = 'Subiendo datos...';
+        try {
+          await WMS.uploadSesionToGitHub(state.config, state.sesion);
+          await dbDelete(STORES.pendientes, state.sesion.id);
+          syncMsg = '✓ Sincronizado correctamente';
+          flash(syncMsg, 'ok');
+        } catch (e) {
+          syncMsg = 'Guardado localmente. Se subira despues.';
+          flash(syncMsg, 'ok');
+        }
+      } else {
+        flash(syncMsg, 'ok');
+      }
+
+      // 3) Cerrar sesion y volver a inicio
       await clearSesionActual();
+      state.currentBatch = null;
+      await persistBatch();
       document.getElementById('top-sub').textContent = 'TEXCORP';
       document.getElementById('inp-operario').value = '';
       updateMovsCount();
@@ -1790,12 +2045,16 @@
       if (e.target.id === 'cam-modal') cerrarCamara();
     });
 
-    // ---- Auto sync al recuperar conexion ----
+    // ---- Auto sync al recuperar conexion (silencioso, sin flashes para operario) ----
     window.addEventListener('online', async () => {
-      const c = await dbCount(STORES.pendientes);
-      if (c > 0 && state.config.repo && state.config.token) {
-        flash('Conexion recuperada, sincronizando pendientes...', '');
-        await syncAllPending();
+      if (!state.config.repo || !state.config.token) return;
+      const all = await dbGetAll(STORES.pendientes);
+      if (!all.length) return;
+      for (const it of all) {
+        try {
+          await WMS.uploadSesionToGitHub(state.config, it.json);
+          await dbDelete(STORES.pendientes, it.id);
+        } catch (e) { /* queda pendiente, admin lo subira desde su panel */ }
       }
     });
   });

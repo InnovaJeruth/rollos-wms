@@ -1,7 +1,10 @@
-const CACHE_VERSION = 'wms-rollos-v1.0.1';
+const CACHE_VERSION = 'wms-rollos-v2.2.0';
 const CORE_ASSETS = [
   './',
   './index.html',
+  './admin.html',
+  './config.js',
+  './common.js',
   './manifest.json',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
 ];
@@ -46,7 +49,10 @@ self.addEventListener('fetch', (event) => {
 
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req).catch(() => caches.match('./index.html'))
+      fetch(req).catch(() => {
+        // Intenta servir la pagina solicitada desde cache (admin.html o index.html)
+        return caches.match(req).then((c) => c || caches.match('./index.html'));
+      })
     );
     return;
   }

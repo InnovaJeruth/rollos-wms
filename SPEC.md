@@ -1,6 +1,6 @@
-# WMS Rollos — Especificación Técnica v1.1
+# WMS Rollos — Especificación Técnica v1.2
 **TEXCORP S.A.C. | Proyecto: Automatización de Movimientos de Almacén**
-**Fecha:** Junio 2026
+**Fecha:** Junio 2026 — v1.2 incorpora 3 modalidades de operación tras reunión de validación
 
 ---
 
@@ -72,54 +72,90 @@ PC OFICINA / VM
 
 ---
 
-## 4. Spec PWA v1.1 (M1)
+## 4. Spec PWA v1.2 (M1)
 
 ### Stack
 - HTML5 + Vanilla JS + CSS (sin frameworks — máxima compatibilidad)
 - Service Worker → funcionalidad offline
 - IndexedDB → almacenamiento local persistente
-- GitHub API (octokit o fetch directo) → sincronización
+- GitHub API (Contents API via fetch) → sincronización
 - Manifest.json → instalable como PWA en Android
+- BarcodeDetector (Chrome Android) → escaneo de QR/código de barras desde la cámara
 
-### Flujo principal
+### Modos de operación (introducidos en v1.2)
 
-#### Pantalla 0 — Identificación
-- Campo: nombre del operario
-- Botón: Iniciar turno
-- Registra: hora_inicio
+El almacén tiene ~60% de los rollos físicamente fuera de su ubicación SAP. El operario elige al inicio del turno (y puede cambiar mid-turno) entre 3 modos. Una misma sesión puede mezclar los 3.
 
-#### Pantalla 1 — Cargar inventario
-- Botón: cargar Excel (.xlsx) exportado de /SCWM/MON
-- Parseo con SheetJS
-- Guardado en IndexedDB
-- Muestra: N° registros cargados + fecha de carga
-- Si ya hay inventario cargado hoy → saltar directo a Pantalla 2
+| Modo | Cuándo usarlo | Output P331 (bot M2) |
+|---|---|---|
+| **A — Traslado individual** | Movimientos rollo-por-rollo con destinos distintos | P331: `bin_sap → bin_destino` |
+| **B — Traslado masivo** | Llevar todo de un bin origen a un bin destino | P331 por rollo: `bin_origen → bin_destino` |
+| **C — Regularización** | Recorrer un bin físico y registrar qué hay realmente ahí. Corrige SAP sin mover físicamente. | P331: `bin_sap → bin_real` (bin_real === bin_físico escaneado) |
 
-#### Pantalla 2 — Escanear rollo (flujo principal)
-1. Campo activo: **Lote SAP ID** (escaneo QR o código de barras o teclado)
-2. Al confirmar → busca en IndexedDB → muestra:
-   - Descripción del material
-   - "SAP indica bin: **A001-08-08-02**"
-   - Pregunta: **¿Está físicamente en esa ubicación?**
-   - Botones grandes: ✅ SÍ | ❌ NO
-3a. Si SÍ → campo: **Bin destino** (escanear etiqueta estante)
-3b. Si NO → campo: **Bin real actual** (escanear donde está físicamente) → luego campo: **Bin destino**
-4. Confirmar → agrega a lista → vuelve a paso 1
+Rollos huérfanos (físicamente presentes pero SAP no los conoce) se registran con `huerfano: true`. El bot M2 los reporta para acción humana (entrada de mercancía M5).
 
-#### Pantalla 3 — Lista de movimientos
-- Lista scrolleable de movimientos pendientes
-- Cada ítem muestra: Lote | Origen → Destino | ⚠️ si hay discrepancia
-- Botón eliminar por ítem
-- Botón: **FINALIZAR TURNO**
+### Flujo de pantallas
 
-#### Pantalla 4 — Finalizar
-- Resumen: N° movimientos, N° discrepancias detectadas
-- Registra: hora_fin
-- Botón: **Sincronizar con GitHub** (requiere señal)
-- Estado de sincronización: pendiente / sincronizando / ✅ completado
-- Si no hay señal: queda guardado en IndexedDB para sincronizar después
+```
+screen-identify → screen-mode-select →┬→ screen-scan-lote (Modo A)
+                                       │     → screen-confirm-bin → screen-real-bin?
+                                       │     → screen-dest-bin → loop
+                                       │
+                                       ├→ screen-bulk-origin (Modo B)
+                                       │     → screen-bulk-list (checkboxes precargados)
+                                       │     → screen-bulk-dest → loop
+                                       │
+                                       └→ screen-reg-bin (Modo C)
+                                             → screen-reg-scan (lista en vivo)
+                                             → loop al siguiente bin físico
 
-### Estructura JSON de auditoría
+Desde cualquier flujo: botón "Cambiar modo" → screen-mode-select.
+Desde mode-select o desde cualquier flujo: "Finalizar turno" → screen-finalize.
+```
+
+### Modo A — Traslado individual (igual que v1.1)
+
+1. Escanea lote SAP ID
+2. Si lote existe + tiene ubicación SAP → muestra "SAP indica bin: A001-08-08-02. ¿Está aquí? SÍ/NO"
+3. Si SÍ → escanea destino → confirma → vuelta al paso 1
+4. Si NO → escanea bin real → escanea destino → confirma → vuelta al paso 1
+5. Si lote no está en inventario → **bloquear** (P331 no podría ejecutarse)
+6. Si lote sin ubicación SAP → salta SI/NO, va directo a bin real (discrepancia automática)
+
+### Modo B — Traslado masivo desde ubicación
+
+1. Escanea bin origen
+2. App precarga lista de rollos que SAP dice tener en ese bin (lookup en IndexedDB filtrando `ubicacion === bin_origen`)
+3. Muestra lista con checkbox por rollo (todos inicialmente desmarcados)
+4. Al escanear cada rollo se marca automáticamente. Si el rollo no estaba en la lista precargada, se agrega como `fuente: 'manual'` (huérfano del bin)
+5. Operario puede marcar/desmarcar manualmente con los checkboxes
+6. "Continuar" → escanea bin destino → genera N movimientos con `accion: 'traslado_masivo'`, mismo `batch_id`, todos con `bin_destino` común
+7. Vuelve al paso 1 (loop para hacer múltiples batches en el turno)
+8. **Bloqueado**: origen === destino
+
+### Modo C — Regularización (barrido)
+
+1. Escanea bin físico donde el operario está parado
+2. Por cada rollo escaneado:
+   - Lookup en inventario
+   - Si SAP dice el mismo bin → `accion_calc: 'noop'` (no genera movimiento, solo muestra "✓ En su lugar")
+   - Si SAP dice otro bin → `accion_calc: 'mover'` → genera movimiento con `bin_sap = <ubicación SAP>`, `bin_real = bin_destino = <bin físico>`, `discrepancia: true`
+   - Si no está en inventario → `accion_calc: 'huerfano'` → genera movimiento con `huerfano: true`, `bin_sap: ''`
+3. Operario presiona "Finalizar bin" → batch se commitea a `sesion.movimientos`
+4. Vuelve al paso 1 (puede recorrer múltiples bins en el turno)
+5. "Cancelar bin" → descarta el batch sin tocar movimientos previamente commiteados
+
+### Estado intermedio (batch en progreso)
+
+`state.currentBatch` se persiste en IndexedDB para recovery de crash. Contiene:
+
+- Modo B: `{modo: 'masivo', bin_origen, batch_id, candidatos: [{lote, ..., marcado, fuente}], bin_destino}`
+- Modo C: `{modo: 'regularizacion', bin_fisico, batch_id, escaneados: [{lote, inv, accion_calc}]}`
+
+Al reabrir la app, si hay `sesion` activa + `currentBatch`, ofrece retomar exactamente en la pantalla donde quedó.
+
+### Estructura JSON de auditoría (ampliada v1.2)
+
 ```json
 {
   "id": "uuid-v4",
@@ -129,35 +165,92 @@ PC OFICINA / VM
   "hora_fin": "08:47:10",
   "dispositivo": "navigator.userAgent",
   "total_movimientos": 12,
-  "total_discrepancias": 3,
+  "total_discrepancias": 8,
+  "resumen_por_accion": {
+    "traslado_individual": 2,
+    "traslado_masivo": 7,
+    "regularizacion": 3
+  },
   "movimientos": [
     {
+      "accion": "traslado_individual",
       "lote": "21559",
       "producto": "AP4750",
       "descripcion": "TECAM POLYGOLD AP475",
       "bin_sap": "A001-08-08-02",
       "bin_real": "A001-08-08-02",
-      "discrepancia": false,
       "bin_destino": "A003-08-07-03",
+      "discrepancia": false,
+      "huerfano": false,
+      "batch_id": null,
       "cantidad": "100",
       "unidad": "M",
       "timestamp": "2026-06-03T08:15:22"
     },
     {
-      "lote": "21560",
+      "accion": "traslado_masivo",
+      "lote": "21601",
+      "producto": "AP4750",
+      "descripcion": "TECAM POLYGOLD AP475",
+      "bin_sap": "A002-04-01-01",
+      "bin_real": "A002-04-01-01",
+      "bin_destino": "A007-02-01-01",
+      "discrepancia": false,
+      "huerfano": false,
+      "batch_id": "b1a2",
+      "cantidad": "85",
+      "unidad": "M",
+      "timestamp": "2026-06-03T08:42:11"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "22050",
       "producto": "AP4750",
       "descripcion": "TECAM POLYGOLD AP475",
       "bin_sap": "A001-08-08-02",
-      "bin_real": "A002-05-01-01",
+      "bin_real": "A005-03-02-01",
+      "bin_destino": "A005-03-02-01",
       "discrepancia": true,
-      "bin_destino": "A003-08-07-03",
-      "cantidad": "85",
+      "huerfano": false,
+      "batch_id": "c5e3",
+      "cantidad": "120",
       "unidad": "M",
-      "timestamp": "2026-06-03T08:22:11"
+      "timestamp": "2026-06-03T09:30:00"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "ZZ999",
+      "producto": "",
+      "descripcion": "",
+      "bin_sap": "",
+      "bin_real": "A005-03-02-01",
+      "bin_destino": "A005-03-02-01",
+      "discrepancia": true,
+      "huerfano": true,
+      "batch_id": "c5e3",
+      "cantidad": "",
+      "unidad": "",
+      "timestamp": "2026-06-03T09:31:42"
     }
   ]
 }
 ```
+
+#### Reglas del bot M2 según `accion`
+
+| accion | huerfano | Acción P331 |
+|---|---|---|
+| `traslado_individual` | false | P331 `bin_sap → bin_destino` |
+| `traslado_masivo` | false | P331 `bin_sap → bin_destino` (o `bin_origen → bin_destino` si bin_sap está vacío y vino como manual) |
+| `regularizacion` | false | P331 `bin_sap → bin_real` (regulariza ubicación lógica) |
+| `regularizacion` | true | **Skip + log para humano** (necesita entrada de mercancía M5) |
+
+#### Compatibilidad con JSONs antiguos
+
+JSONs guardados antes de v1.2 no tienen `accion`/`huerfano`/`batch_id`/`resumen_por_accion`. El bot debe tratar:
+- `accion` ausente → `'traslado_individual'`
+- `huerfano` ausente → `false`
+- `batch_id` ausente → `null`
 
 ### GitHub — estructura del repo
 ```
