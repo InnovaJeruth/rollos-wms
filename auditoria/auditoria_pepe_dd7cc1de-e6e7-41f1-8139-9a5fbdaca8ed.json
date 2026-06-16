@@ -1,0 +1,102 @@
+{
+  "schema": "auditoria_v1",
+  "id": "dd7cc1de-e6e7-41f1-8139-9a5fbdaca8ed",
+  "operario": "pepe",
+  "fecha": "2026-06-15",
+  "hora_inicio": "15:41:47",
+  "hora_fin": "15:45:31",
+  "dispositivo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+  "kpis": {
+    "duracion_seg": 224,
+    "duracion_min": 4,
+    "total_movimientos": 5,
+    "total_discrepancias": 0,
+    "total_huerfanos": 0,
+    "total_ejecutables": 5,
+    "por_accion": {
+      "traslado_individual": 0,
+      "traslado_masivo": 5,
+      "regularizacion": 0
+    },
+    "seg_por_movimiento": 45
+  },
+  "huerfanos": [],
+  "discrepancias": [],
+  "movimientos": [
+    {
+      "lote": "14753",
+      "producto": "1000070514002",
+      "descripcion": "FORRO JACQUARD/SOLID DYED FL, AZUL NOCHE",
+      "bin_sap": "A001-01-01-01",
+      "bin_real": "A001-01-01-01",
+      "discrepancia": false,
+      "bin_destino": "A001-01-01-02",
+      "cantidad": "80",
+      "unidad": "M",
+      "timestamp": "2026-06-15T15:45:28",
+      "accion": "traslado_masivo",
+      "huerfano": false,
+      "batch_id": "5judto"
+    },
+    {
+      "lote": "14757",
+      "producto": "1000070514002",
+      "descripcion": "FORRO JACQUARD/SOLID DYED FL, AZUL NOCHE",
+      "bin_sap": "A001-01-01-01",
+      "bin_real": "A001-01-01-01",
+      "discrepancia": false,
+      "bin_destino": "A001-01-01-02",
+      "cantidad": "80",
+      "unidad": "M",
+      "timestamp": "2026-06-15T15:45:28",
+      "accion": "traslado_masivo",
+      "huerfano": false,
+      "batch_id": "5judto"
+    },
+    {
+      "lote": "14795",
+      "producto": "1000070514002",
+      "descripcion": "FORRO JACQUARD/SOLID DYED FL, AZUL NOCHE",
+      "bin_sap": "A001-01-01-01",
+      "bin_real": "A001-01-01-01",
+      "discrepancia": false,
+      "bin_destino": "A001-01-01-02",
+      "cantidad": "82",
+      "unidad": "M",
+      "timestamp": "2026-06-15T15:45:28",
+      "accion": "traslado_masivo",
+      "huerfano": false,
+      "batch_id": "5judto"
+    },
+    {
+      "lote": "FE0194808",
+      "producto": "1000015088051",
+      "descripcion": "TELA CAM POPELINA KT0024, CELESTE 1655",
+      "bin_sap": "A001-01-01-01",
+      "bin_real": "A001-01-01-01",
+      "discrepancia": false,
+      "bin_destino": "A001-01-01-02",
+      "cantidad": "82",
+      "unidad": "M",
+      "timestamp": "2026-06-15T15:45:28",
+      "accion": "traslado_masivo",
+      "huerfano": false,
+      "batch_id": "5judto"
+    },
+    {
+      "lote": "FE0194821",
+      "producto": "1000015088051",
+      "descripcion": "TELA CAM POPELINA KT0024, CELESTE 1655",
+      "bin_sap": "A001-01-01-01",
+      "bin_real": "A001-01-01-01",
+      "discrepancia": false,
+      "bin_destino": "A001-01-01-02",
+      "cantidad": "92",
+      "unidad": "M",
+      "timestamp": "2026-06-15T15:45:28",
+      "accion": "traslado_masivo",
+      "huerfano": false,
+      "batch_id": "5judto"
+    }
+  ]
+}

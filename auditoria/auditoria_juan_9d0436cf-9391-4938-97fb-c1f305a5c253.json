@@ -1,0 +1,76 @@
+{
+  "schema": "auditoria_v1",
+  "id": "9d0436cf-9391-4938-97fb-c1f305a5c253",
+  "operario": "juan",
+  "fecha": "2026-06-15",
+  "hora_inicio": "15:46:43",
+  "hora_fin": "15:48:07",
+  "dispositivo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+  "kpis": {
+    "duracion_seg": 84,
+    "duracion_min": 1,
+    "total_movimientos": 2,
+    "total_discrepancias": 2,
+    "total_huerfanos": 0,
+    "total_ejecutables": 2,
+    "por_accion": {
+      "traslado_individual": 0,
+      "traslado_masivo": 0,
+      "regularizacion": 2
+    },
+    "seg_por_movimiento": 42
+  },
+  "huerfanos": [],
+  "discrepancias": [
+    {
+      "lote": "FL0256063",
+      "bin_sap": "A001-01-01-02",
+      "bin_real": "A001-01-01-01",
+      "bin_destino": "A001-01-01-01",
+      "accion": "regularizacion",
+      "timestamp": "2026-06-15T15:48:04",
+      "batch_id": "6m67ml"
+    },
+    {
+      "lote": "E6907160",
+      "bin_sap": "A001-01-01-02",
+      "bin_real": "A001-01-01-01",
+      "bin_destino": "A001-01-01-01",
+      "accion": "regularizacion",
+      "timestamp": "2026-06-15T15:48:04",
+      "batch_id": "6m67ml"
+    }
+  ],
+  "movimientos": [
+    {
+      "lote": "FL0256063",
+      "producto": "1000015088068",
+      "descripcion": "TELA CAM POPELINA KT0024, LILA - S",
+      "bin_sap": "A001-01-01-02",
+      "bin_real": "A001-01-01-01",
+      "discrepancia": true,
+      "bin_destino": "A001-01-01-01",
+      "cantidad": "79",
+      "unidad": "M",
+      "timestamp": "2026-06-15T15:48:04",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "6m67ml"
+    },
+    {
+      "lote": "E6907160",
+      "producto": "1000015172003",
+      "descripcion": "TELA PANT DRIL DW0058, PPT.",
+      "bin_sap": "A001-01-01-02",
+      "bin_real": "A001-01-01-01",
+      "discrepancia": true,
+      "bin_destino": "A001-01-01-01",
+      "cantidad": "120",
+      "unidad": "M",
+      "timestamp": "2026-06-15T15:48:04",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "6m67ml"
+    }
+  ]
+}
