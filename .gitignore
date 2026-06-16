@@ -1,1 +1,8 @@
 node_modules/
+
+# Datos operativos — escritos por la app vía GitHub API, no por git
+inventario/actual.json
+pendientes/*.json
+auditoria/*.json
+procesados/*.json
+logs/*.json
