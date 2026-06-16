@@ -34,7 +34,7 @@ window.PROJECT_CONFIG = {
   // Usar _token_enc con el valor base64 del token (btoa('ghp_...') en consola).
   // loadConfig() en common.js lo decodifica automaticamente con atob().
   token: '',
-  _token_enc: 'Z2hwX1hLQlBaTWZ1a3drUkN6S2l1bU9iTmZqYkZtbWdmNTJvMGxGUg==',
+  _token_enc: '',
 
   // Credenciales del panel admin (cliente-side, solo gate de UX)
   admin_user: 'sa',
