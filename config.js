@@ -33,7 +33,7 @@ window.PROJECT_CONFIG = {
   // Token de GitHub (PAT con Contents: Read and write SOLO en este repo)
   // Dejar vacío para que cada dispositivo lo ingrese manualmente.
   // Llenar con un valor para "config global" automática en todos los dispositivos.
-  token: '',
+  token: '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',
 
   // Credenciales del panel admin (cliente-side, solo gate de UX)
   admin_user: 'sa',
