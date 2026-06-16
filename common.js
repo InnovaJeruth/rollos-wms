@@ -188,10 +188,15 @@
     const branch = await dbGet(STORES.config, 'branch');
     const token = await dbGet(STORES.config, 'token');
     const defaults = (typeof window !== 'undefined' && window.PROJECT_CONFIG) || {};
+    // Decodificar token encriptado en base64 si existe (_token_enc)
+    let defaultToken = defaults.token || '';
+    if (!defaultToken && defaults._token_enc) {
+      try { defaultToken = atob(defaults._token_enc); } catch (e) {}
+    }
     return {
       repo: repo ? repo.value : (defaults.repo || ''),
       branch: branch ? branch.value : (defaults.branch || 'main'),
-      token: token ? token.value : (defaults.token || '')
+      token: token ? token.value : defaultToken
     };
   }
   async function saveConfig(cfg) {

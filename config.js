@@ -30,10 +30,11 @@ window.PROJECT_CONFIG = {
   // Branch a usar
   branch: 'main',
 
-  // Token de GitHub (PAT con Contents: Read and write SOLO en este repo)
-  // Dejar vacío para que cada dispositivo lo ingrese manualmente.
-  // Llenar con un valor para "config global" automática en todos los dispositivos.
+  // Token de GitHub — NO poner el token en claro aqui.
+  // Usar _token_enc con el valor base64 del token (btoa('ghp_...') en consola).
+  // loadConfig() en common.js lo decodifica automaticamente con atob().
   token: '',
+  _token_enc: 'Z2hwX1hLQlBaTWZ1a3drUkN6S2l1bU9iTmZqYkZtbWdmNTJvMGxGUg=='
 
   // Credenciales del panel admin (cliente-side, solo gate de UX)
   admin_user: 'sa',
