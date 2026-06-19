@@ -517,6 +517,135 @@
       input[type="text"] { padding: 12px; font-size: 18px; min-height: 52px; }
       .scan-cam-btn { min-height: 52px; }
     }
+
+    /* ========================================================
+       HANDHELD: Honeywell CK65 y dispositivos compactos
+       Pantalla ~240×360 CSS-px (6cm × 9cm físicos).
+       El CK65 tiene escáner láser integrado → no necesita cámara.
+       Todas las pantallas deben caber sin scroll.
+       Variables reutilizables para futuros desarrollos handheld.
+       ======================================================== */
+    :root {
+      --hh-font-base: 13px;
+      --hh-font-title: 15px;
+      --hh-font-big: 18px;
+      --hh-font-label: 10px;
+      --hh-font-btn: 14px;
+      --hh-pad-screen: 6px 8px;
+      --hh-pad-card: 6px 8px;
+      --hh-pad-input: 8px 6px;
+      --hh-pad-btn: 8px 10px;
+      --hh-btn-height: 36px;
+      --hh-gap: 4px;
+      --hh-radius: 6px;
+      --hh-topbar-height: 32px;
+    }
+
+    body.is-handheld {
+      font-size: var(--hh-font-base);
+      line-height: 1.25;
+    }
+    body.is-handheld .app { max-width: 100%; }
+
+    body.is-handheld .topbar {
+      padding: 3px 6px;
+      min-height: var(--hh-topbar-height);
+    }
+    body.is-handheld .topbar .title { font-size: 12px; }
+    body.is-handheld .topbar .sub { font-size: 10px; }
+    body.is-handheld .topbar-right { gap: 4px; }
+    body.is-handheld .icon-btn { width: 26px; height: 26px; font-size: 14px; }
+    body.is-handheld .status-pill { padding: 2px 6px; font-size: 10px; gap: 3px; }
+    body.is-handheld .status-pill .dot { width: 5px; height: 5px; }
+
+    body.is-handheld .screen {
+      padding: var(--hh-pad-screen);
+      overflow: hidden; /* forzar sin scroll */
+    }
+
+    body.is-handheld h1 { font-size: var(--hh-font-title); margin: 0 0 4px; }
+    body.is-handheld h2 { font-size: var(--hh-font-label); margin: 6px 0 3px; }
+    body.is-handheld p { font-size: var(--hh-font-base); margin: 0 0 4px; }
+    body.is-handheld label { font-size: var(--hh-font-label); margin: 4px 0 2px; }
+
+    body.is-handheld input[type="text"],
+    body.is-handheld input[type="password"] {
+      padding: var(--hh-pad-input);
+      font-size: var(--hh-font-base);
+      min-height: 30px;
+      border-radius: var(--hh-radius);
+    }
+
+    body.is-handheld .btn {
+      min-height: var(--hh-btn-height);
+      padding: var(--hh-pad-btn);
+      font-size: var(--hh-font-btn);
+      border-radius: var(--hh-radius);
+      margin-top: var(--hh-gap);
+    }
+    body.is-handheld .yesno .btn {
+      min-height: 50px;
+      font-size: 18px;
+    }
+    body.is-handheld .yesno { gap: 6px; }
+
+    body.is-handheld .card {
+      padding: var(--hh-pad-card);
+      margin-bottom: var(--hh-gap);
+      border-radius: var(--hh-radius);
+    }
+    body.is-handheld .big-value { font-size: var(--hh-font-big); }
+    body.is-handheld .label-strong { font-size: var(--hh-font-label); margin-bottom: 1px; }
+    body.is-handheld .ask { font-size: 15px; margin: 6px 0 4px; }
+
+    body.is-handheld .step-indicator { font-size: 10px; margin-bottom: 3px; letter-spacing: 0.5px; }
+    body.is-handheld .scan-stage { gap: 2px; }
+
+    body.is-handheld .scan-row { gap: 4px; }
+    /* CK65 tiene escáner láser — ocultar botón cámara siempre */
+    body.is-handheld .scan-cam-btn { display: none !important; }
+
+    body.is-handheld .mode-btn {
+      min-height: 48px;
+      padding: 8px 10px;
+      margin-top: 4px;
+    }
+    body.is-handheld .mode-btn-title { font-size: 14px; margin-bottom: 1px; }
+    body.is-handheld .mode-btn-desc { font-size: 10px; }
+
+    body.is-handheld .summary-grid { gap: 4px; margin-bottom: 4px; }
+
+    body.is-handheld .mov-item {
+      padding: 5px 6px;
+      margin-bottom: 3px;
+      border-radius: var(--hh-radius);
+      gap: 6px;
+    }
+    body.is-handheld .mov-item .lote { font-size: 13px; }
+    body.is-handheld .mov-item .path { font-size: 11px; }
+    body.is-handheld .mov-item .del { width: 28px; height: 28px; font-size: 16px; }
+
+    body.is-handheld .batch-item {
+      padding: 4px 6px;
+      margin-bottom: 3px;
+      border-radius: var(--hh-radius);
+      gap: 5px;
+      font-size: 11px;
+    }
+    body.is-handheld .batch-item .lote { font-size: 13px; }
+    body.is-handheld .batch-item .meta { font-size: 10px; }
+    body.is-handheld .batch-item .tag { font-size: 9px; padding: 2px 5px; }
+    body.is-handheld .batch-item input[type="checkbox"] { width: 18px; height: 18px; }
+
+    body.is-handheld .footer-info { padding: 3px 6px; font-size: 9px; }
+
+    body.is-handheld .flash { top: 36px; font-size: 12px; padding: 6px 12px; }
+
+    /* Modal cámara en handheld — compacto por si acaso */
+    body.is-handheld #cam-modal .modal { max-width: 100%; }
+    body.is-handheld #cam-video { max-height: 50vh; }
+    body.is-handheld .cam-controls { padding: 6px; }
+    body.is-handheld #cam-hint { font-size: 11px; margin-bottom: 4px; }
   </style>
 </head>
 <body>
@@ -796,7 +925,7 @@
       <button class="btn secondary" id="btn-back-to-list">Volver a la lista</button>
     </section>
 
-    <div class="footer-info" id="footer-info">v2.0.0 · operario · 3 modos</div>
+    <div class="footer-info" id="footer-info">v2.3.0 · operario · 3 modos</div>
   </div>
 
   <!-- Modal camara -->
@@ -816,6 +945,14 @@
   <div class="flash" id="flash">mensaje</div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- BarcodeDetector polyfill para Safari/iOS (usa zbar WASM internamente) -->
+  <script src="https://cdn.jsdelivr.net/npm/@undecaf/zbar-wasm@0.9.15/dist/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@undecaf/barcode-detector-polyfill@0.9.23/dist/index.js"></script>
+  <script>
+    // Registrar polyfill solo si el navegador no tiene BarcodeDetector nativo
+    try { window['BarcodeDetector'].getSupportedFormats(); }
+    catch { window['BarcodeDetector'] = barcodeDetectorPolyfill.BarcodeDetectorPolyfill; }
+  </script>
   <script src="config.js"></script>
   <script src="common.js"></script>
   <script>
@@ -857,7 +994,7 @@
     currentMov: null,
     modoActivo: 'individual', // 'individual' | 'masivo' | 'regularizacion'
     currentBatch: null,       // estado intermedio de batch en modos B/C
-    config: { repo: '', branch: 'main', token: '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' }, // se llena desde WMS.loadConfig (IndexedDB > PROJECT_CONFIG)
+    config: { repo: '', branch: 'main', token: '' }, // se llena desde WMS.loadConfig (IndexedDB > PROJECT_CONFIG)
     hasCamera: false,
     isAdmin: false
   };
@@ -954,6 +1091,7 @@
 
   function iniciarScan() {
     if ('BarcodeDetector' in window) {
+      // Nativo (Chrome Android) o polyfill (Safari/iOS) — misma API
       const detector = new BarcodeDetector({
         formats: ['qr_code','code_128','code_39','ean_13','ean_8','data_matrix']
       });
@@ -967,11 +1105,12 @@
             cerrarCamara();
             entregarValorEscaneado(target, val);
           }
-        } catch (e) { /* ignorar */ }
+        } catch (e) { /* ignorar — frame sin código legible */ }
       }, 300);
     } else {
-      document.getElementById('cam-hint').textContent = 'BarcodeDetector no disponible en este navegador. Usa el campo de texto.';
-      setTimeout(cerrarCamara, 3000);
+      // Solo si el polyfill no cargó (ej: sin conexión en la primera vez)
+      document.getElementById('cam-hint').textContent = 'Escaner no disponible. Usa el campo de texto.';
+      setTimeout(cerrarCamara, 5000);
     }
   }
 
@@ -1760,6 +1899,28 @@
   // ============================================================
   // Event listeners
   // ============================================================
+  // ============================================================
+  // Deteccion de dispositivo handheld (Honeywell CK65 u otros)
+  // Criterio: user-agent contiene "CK65" / "CT40" / "CT60" / "EDA" (Honeywell)
+  //           O pantalla <= 280px ancho (6cm a ~120dpi)
+  // La clase 'is-handheld' activa CSS compacto sin scroll.
+  // Reutilizable: para agregar otros handhelds, sumar al regex.
+  // ============================================================
+  const HANDHELD_UA_RE = /CK65|CK3X|CT40|CT60|EDA5[12]|Dolphin|CN51/i;
+  const MAX_HANDHELD_WIDTH = 280; // CSS px
+
+  function detectHandheld() {
+    const ua = navigator.userAgent || '';
+    const isHH = HANDHELD_UA_RE.test(ua) || (window.screen.width <= MAX_HANDHELD_WIDTH);
+    if (isHH) {
+      document.body.classList.add('is-handheld');
+      console.log('[WMS] Handheld detectado:', ua, 'screen:', window.screen.width + 'x' + window.screen.height);
+    }
+    return isHH;
+  }
+  // Ejecutar inmediatamente para evitar flash de layout normal
+  detectHandheld();
+
   document.addEventListener('DOMContentLoaded', async () => {
     refreshNetStatus();
     await loadConfigIntoState();

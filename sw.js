@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'wms-rollos-v2.2.0';
+const CACHE_VERSION = 'wms-rollos-v2.3.0';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -6,7 +6,9 @@ const CORE_ASSETS = [
   './config.js',
   './common.js',
   './manifest.json',
-  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  'https://cdn.jsdelivr.net/npm/@undecaf/zbar-wasm@0.9.15/dist/index.js',
+  'https://cdn.jsdelivr.net/npm/@undecaf/barcode-detector-polyfill@0.9.23/dist/index.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -68,7 +70,7 @@ self.addEventListener('fetch', (event) => {
         return cached;
       }
       return fetch(req).then((resp) => {
-        if (resp && resp.status === 200 && (url.origin === location.origin || url.hostname === 'cdnjs.cloudflare.com')) {
+        if (resp && resp.status === 200 && (url.origin === location.origin || url.hostname === 'cdnjs.cloudflare.com' || url.hostname === 'cdn.jsdelivr.net')) {
           const clone = resp.clone();
           caches.open(CACHE_VERSION).then((c) => c.put(req, clone));
         }
