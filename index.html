@@ -562,8 +562,16 @@
     /* --- Screens --- */
     body.is-handheld .screen {
       padding: var(--hh-pad-screen);
-      overflow-y: auto; /* permitir scroll si es necesario */
+      overflow-y: auto;
       -webkit-overflow-scrolling: touch;
+    }
+    /* Pantallas de escaneo: distribuir contenido verticalmente */
+    body.is-handheld .screen.no-scroll {
+      overflow: hidden;
+    }
+    body.is-handheld .screen.no-scroll .scan-stage {
+      flex: 1;
+      justify-content: space-evenly;
     }
 
     /* --- Ocultar títulos h1 en pantallas de escaneo (ya lo dice el step-indicator) --- */
@@ -1922,37 +1930,28 @@
   // La clase 'is-handheld' activa CSS compacto sin scroll.
   // ============================================================
   const HANDHELD_UA_RE = /CK65|CK3X|CT40|CT60|EDA5[12]|Dolphin|CN51/i;
+  // CK65: screen 320x534, dpr 1.5. Celulares normales: 360+, dpr 2+.
+  const HANDHELD_SCREEN_MAX = 320;
 
   function detectHandheld() {
     const params = new URLSearchParams(window.location.search);
-    // URL param ?hh=1 activa, ?hh=0 desactiva (persiste en localStorage)
     if (params.has('hh')) {
       const val = params.get('hh');
       if (val === '1') localStorage.setItem('wms_handheld', '1');
       else localStorage.removeItem('wms_handheld');
     }
     const ua = navigator.userAgent || '';
-    const isHH = localStorage.getItem('wms_handheld') === '1' || HANDHELD_UA_RE.test(ua);
+    const isHH = localStorage.getItem('wms_handheld') === '1'
+      || HANDHELD_UA_RE.test(ua)
+      || (window.screen.width <= HANDHELD_SCREEN_MAX && window.devicePixelRatio <= 1.5);
     if (isHH) {
       document.body.classList.add('is-handheld');
-      console.log('[WMS] Handheld activo. UA:', ua, 'screen:', window.screen.width + 'x' + window.screen.height);
+      console.log('[WMS] Handheld activo. screen:', window.screen.width + 'x' + window.screen.height, 'dpr:', window.devicePixelRatio);
     }
     return isHH;
   }
   // Ejecutar inmediatamente para evitar flash de layout normal
-  const isHH = detectHandheld();
-
-  // Diagnóstico temporal: mostrar dimensiones de pantalla en el footer
-  // TODO: eliminar después de calibrar autodetección
-  window.addEventListener('DOMContentLoaded', () => {
-    const footer = document.getElementById('footer-info');
-    if (footer) {
-      const s = window.screen;
-      const diag = ` | scr:${s.width}x${s.height} dpr:${devicePixelRatio} in:${innerWidth}x${innerHeight}`;
-      footer.textContent += diag;
-      if (isHH) footer.textContent += ' [HH]';
-    }
-  });
+  detectHandheld();
 
   document.addEventListener('DOMContentLoaded', async () => {
     refreshNetStatus();
