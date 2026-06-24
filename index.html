@@ -1940,7 +1940,19 @@
     return isHH;
   }
   // Ejecutar inmediatamente para evitar flash de layout normal
-  detectHandheld();
+  const isHH = detectHandheld();
+
+  // Diagnóstico temporal: mostrar dimensiones de pantalla en el footer
+  // TODO: eliminar después de calibrar autodetección
+  window.addEventListener('DOMContentLoaded', () => {
+    const footer = document.getElementById('footer-info');
+    if (footer) {
+      const s = window.screen;
+      const diag = ` | scr:${s.width}x${s.height} dpr:${devicePixelRatio} in:${innerWidth}x${innerHeight}`;
+      footer.textContent += diag;
+      if (isHH) footer.textContent += ' [HH]';
+    }
+  });
 
   document.addEventListener('DOMContentLoaded', async () => {
     refreshNetStatus();
