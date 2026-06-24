@@ -520,62 +520,71 @@
 
     /* ========================================================
        HANDHELD: Honeywell CK65 y dispositivos compactos
-       Pantalla ~240×360 CSS-px (6cm × 9cm físicos).
+       Pantalla física ~6cm × 9cm pero viewport CSS ~360×640.
        El CK65 tiene escáner láser integrado → no necesita cámara.
-       Todas las pantallas deben caber sin scroll.
-       Variables reutilizables para futuros desarrollos handheld.
+       Activar con URL: ?hh=1 (se guarda en localStorage).
+       Cada pantalla debe caber COMPLETA sin scroll.
+       Variables --hh-* reutilizables para futuros handhelds.
        ======================================================== */
     :root {
-      --hh-font-base: 13px;
-      --hh-font-title: 15px;
-      --hh-font-big: 18px;
-      --hh-font-label: 10px;
-      --hh-font-btn: 14px;
-      --hh-pad-screen: 6px 8px;
-      --hh-pad-card: 6px 8px;
-      --hh-pad-input: 8px 6px;
-      --hh-pad-btn: 8px 10px;
-      --hh-btn-height: 36px;
-      --hh-gap: 4px;
+      --hh-font-base: 12px;
+      --hh-font-title: 13px;
+      --hh-font-big: 16px;
+      --hh-font-label: 9px;
+      --hh-font-btn: 13px;
+      --hh-pad-screen: 4px 6px;
+      --hh-pad-card: 4px 6px;
+      --hh-pad-input: 6px 6px;
+      --hh-pad-btn: 4px 8px;
+      --hh-btn-height: 32px;
+      --hh-gap: 3px;
       --hh-radius: 6px;
-      --hh-topbar-height: 32px;
     }
 
     body.is-handheld {
       font-size: var(--hh-font-base);
-      line-height: 1.25;
+      line-height: 1.2;
     }
     body.is-handheld .app { max-width: 100%; }
 
+    /* --- Topbar: mucho más compacta --- */
     body.is-handheld .topbar {
-      padding: 3px 6px;
-      min-height: var(--hh-topbar-height);
+      padding: 2px 6px;
+      min-height: 24px;
     }
-    body.is-handheld .topbar .title { font-size: 12px; }
-    body.is-handheld .topbar .sub { font-size: 10px; }
-    body.is-handheld .topbar-right { gap: 4px; }
-    body.is-handheld .icon-btn { width: 26px; height: 26px; font-size: 14px; }
-    body.is-handheld .status-pill { padding: 2px 6px; font-size: 10px; gap: 3px; }
-    body.is-handheld .status-pill .dot { width: 5px; height: 5px; }
+    body.is-handheld .topbar .title { font-size: 11px; }
+    body.is-handheld .topbar .sub { font-size: 9px; }
+    body.is-handheld .topbar-right { gap: 3px; }
+    body.is-handheld .icon-btn { width: 20px; height: 20px; font-size: 11px; border-radius: 4px; }
+    body.is-handheld .status-pill { padding: 1px 4px; font-size: 8px; gap: 2px; border-radius: 6px; }
+    body.is-handheld .status-pill .dot { width: 4px; height: 4px; }
 
+    /* --- Screens --- */
     body.is-handheld .screen {
       padding: var(--hh-pad-screen);
-      overflow: hidden; /* forzar sin scroll */
+      overflow-y: auto; /* permitir scroll si es necesario */
+      -webkit-overflow-scrolling: touch;
     }
 
-    body.is-handheld h1 { font-size: var(--hh-font-title); margin: 0 0 4px; }
-    body.is-handheld h2 { font-size: var(--hh-font-label); margin: 6px 0 3px; }
-    body.is-handheld p { font-size: var(--hh-font-base); margin: 0 0 4px; }
-    body.is-handheld label { font-size: var(--hh-font-label); margin: 4px 0 2px; }
+    /* --- Ocultar títulos h1 en pantallas de escaneo (ya lo dice el step-indicator) --- */
+    body.is-handheld .scan-stage h1 { display: none; }
 
+    /* --- Textos informativos y labels más chicos --- */
+    body.is-handheld h1 { font-size: var(--hh-font-title); margin: 0 0 2px; }
+    body.is-handheld h2 { font-size: var(--hh-font-label); margin: 4px 0 2px; }
+    body.is-handheld p { font-size: 10px; margin: 0 0 2px; color: var(--text-dim); }
+    body.is-handheld label { font-size: var(--hh-font-label); margin: 2px 0 1px; }
+
+    /* --- Inputs --- */
     body.is-handheld input[type="text"],
     body.is-handheld input[type="password"] {
       padding: var(--hh-pad-input);
-      font-size: var(--hh-font-base);
-      min-height: 30px;
+      font-size: 14px; /* legible para escanear/digitar */
+      min-height: 28px;
       border-radius: var(--hh-radius);
     }
 
+    /* --- Botones --- */
     body.is-handheld .btn {
       min-height: var(--hh-btn-height);
       padding: var(--hh-pad-btn);
@@ -584,68 +593,74 @@
       margin-top: var(--hh-gap);
     }
     body.is-handheld .yesno .btn {
-      min-height: 50px;
-      font-size: 18px;
+      min-height: 44px;
+      font-size: 16px;
     }
-    body.is-handheld .yesno { gap: 6px; }
+    body.is-handheld .yesno { gap: 4px; }
 
+    /* --- Cards --- */
     body.is-handheld .card {
       padding: var(--hh-pad-card);
       margin-bottom: var(--hh-gap);
       border-radius: var(--hh-radius);
     }
     body.is-handheld .big-value { font-size: var(--hh-font-big); }
-    body.is-handheld .label-strong { font-size: var(--hh-font-label); margin-bottom: 1px; }
-    body.is-handheld .ask { font-size: 15px; margin: 6px 0 4px; }
+    body.is-handheld .label-strong { font-size: var(--hh-font-label); margin-bottom: 0; }
+    body.is-handheld .ask { font-size: 14px; margin: 4px 0 3px; }
 
-    body.is-handheld .step-indicator { font-size: 10px; margin-bottom: 3px; letter-spacing: 0.5px; }
-    body.is-handheld .scan-stage { gap: 2px; }
+    /* --- Step indicator y scan-stage --- */
+    body.is-handheld .step-indicator { font-size: 9px; margin-bottom: 2px; letter-spacing: 0.3px; }
+    body.is-handheld .scan-stage { gap: 1px; }
 
+    /* --- Scan row + cámara oculta (CK65 tiene escáner láser) --- */
     body.is-handheld .scan-row { gap: 4px; }
-    /* CK65 tiene escáner láser — ocultar botón cámara siempre */
     body.is-handheld .scan-cam-btn { display: none !important; }
 
+    /* --- Botones de modo --- */
     body.is-handheld .mode-btn {
-      min-height: 48px;
-      padding: 8px 10px;
-      margin-top: 4px;
+      min-height: 38px;
+      padding: 6px 8px;
+      margin-top: 3px;
     }
-    body.is-handheld .mode-btn-title { font-size: 14px; margin-bottom: 1px; }
-    body.is-handheld .mode-btn-desc { font-size: 10px; }
+    body.is-handheld .mode-btn-title { font-size: 13px; margin-bottom: 0; }
+    body.is-handheld .mode-btn-desc { font-size: 9px; }
 
-    body.is-handheld .summary-grid { gap: 4px; margin-bottom: 4px; }
+    /* --- Grids y listas --- */
+    body.is-handheld .summary-grid { gap: 3px; margin-bottom: 3px; }
 
     body.is-handheld .mov-item {
-      padding: 5px 6px;
-      margin-bottom: 3px;
+      padding: 4px 5px;
+      margin-bottom: 2px;
       border-radius: var(--hh-radius);
-      gap: 6px;
+      gap: 4px;
     }
-    body.is-handheld .mov-item .lote { font-size: 13px; }
-    body.is-handheld .mov-item .path { font-size: 11px; }
-    body.is-handheld .mov-item .del { width: 28px; height: 28px; font-size: 16px; }
+    body.is-handheld .mov-item .lote { font-size: 12px; }
+    body.is-handheld .mov-item .path { font-size: 10px; }
+    body.is-handheld .mov-item .del { width: 24px; height: 24px; font-size: 14px; }
 
     body.is-handheld .batch-item {
-      padding: 4px 6px;
-      margin-bottom: 3px;
+      padding: 3px 5px;
+      margin-bottom: 2px;
       border-radius: var(--hh-radius);
-      gap: 5px;
-      font-size: 11px;
+      gap: 4px;
+      font-size: 10px;
     }
-    body.is-handheld .batch-item .lote { font-size: 13px; }
-    body.is-handheld .batch-item .meta { font-size: 10px; }
-    body.is-handheld .batch-item .tag { font-size: 9px; padding: 2px 5px; }
-    body.is-handheld .batch-item input[type="checkbox"] { width: 18px; height: 18px; }
+    body.is-handheld .batch-item .lote { font-size: 12px; }
+    body.is-handheld .batch-item .meta { font-size: 9px; }
+    body.is-handheld .batch-item .tag { font-size: 8px; padding: 1px 4px; }
+    body.is-handheld .batch-item input[type="checkbox"] { width: 16px; height: 16px; }
 
-    body.is-handheld .footer-info { padding: 3px 6px; font-size: 9px; }
+    /* --- Footer --- */
+    body.is-handheld .footer-info { padding: 2px 6px; font-size: 8px; }
 
-    body.is-handheld .flash { top: 36px; font-size: 12px; padding: 6px 12px; }
+    /* --- Flash messages --- */
+    body.is-handheld .flash { top: 28px; font-size: 11px; padding: 4px 10px; }
 
-    /* Modal cámara en handheld — compacto por si acaso */
+    /* --- Modal cámara (por si acaso) --- */
     body.is-handheld #cam-modal .modal { max-width: 100%; }
     body.is-handheld #cam-video { max-height: 50vh; }
-    body.is-handheld .cam-controls { padding: 6px; }
-    body.is-handheld #cam-hint { font-size: 11px; margin-bottom: 4px; }
+    body.is-handheld .cam-controls { padding: 4px; }
+    body.is-handheld #cam-hint { font-size: 10px; margin-bottom: 3px; }
   </style>
 </head>
 <body>
@@ -1901,20 +1916,26 @@
   // ============================================================
   // ============================================================
   // Deteccion de dispositivo handheld (Honeywell CK65 u otros)
-  // Criterio: user-agent contiene "CK65" / "CT40" / "CT60" / "EDA" (Honeywell)
-  //           O pantalla <= 280px ancho (6cm a ~120dpi)
+  // Activacion: URL con ?hh=1 → guarda en localStorage permanente.
+  //             URL con ?hh=0 → desactiva.
+  //             Tambien detecta por user-agent (CK65, CT40, etc.)
   // La clase 'is-handheld' activa CSS compacto sin scroll.
-  // Reutilizable: para agregar otros handhelds, sumar al regex.
   // ============================================================
   const HANDHELD_UA_RE = /CK65|CK3X|CT40|CT60|EDA5[12]|Dolphin|CN51/i;
-  const MAX_HANDHELD_WIDTH = 280; // CSS px
 
   function detectHandheld() {
+    const params = new URLSearchParams(window.location.search);
+    // URL param ?hh=1 activa, ?hh=0 desactiva (persiste en localStorage)
+    if (params.has('hh')) {
+      const val = params.get('hh');
+      if (val === '1') localStorage.setItem('wms_handheld', '1');
+      else localStorage.removeItem('wms_handheld');
+    }
     const ua = navigator.userAgent || '';
-    const isHH = HANDHELD_UA_RE.test(ua) || (window.screen.width <= MAX_HANDHELD_WIDTH);
+    const isHH = localStorage.getItem('wms_handheld') === '1' || HANDHELD_UA_RE.test(ua);
     if (isHH) {
       document.body.classList.add('is-handheld');
-      console.log('[WMS] Handheld detectado:', ua, 'screen:', window.screen.width + 'x' + window.screen.height);
+      console.log('[WMS] Handheld activo. UA:', ua, 'screen:', window.screen.width + 'x' + window.screen.height);
     }
     return isHH;
   }
