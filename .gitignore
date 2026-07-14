@@ -6,3 +6,11 @@ pendientes/*.json
 auditoria/*.json
 procesados/*.json
 logs/*.json
+
+# Bot Python — archivos generados / sensibles
+.env
+__pycache__/
+*.pyc
+logs/
+inventario_descargado/
+INVENTARIO_*.txt

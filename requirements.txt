@@ -1,0 +1,6 @@
+pywin32
+requests
+python-dotenv
+pystray
+pillow
+flask
