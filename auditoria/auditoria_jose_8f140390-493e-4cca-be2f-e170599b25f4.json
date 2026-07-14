@@ -1,0 +1,124 @@
+{
+  "schema": "auditoria_v1",
+  "id": "8f140390-493e-4cca-be2f-e170599b25f4",
+  "operario": "jose",
+  "fecha": "2026-07-14",
+  "hora_inicio": "19:06:09",
+  "hora_fin": "19:08:47",
+  "dispositivo": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36",
+  "kpis": {
+    "duracion_seg": 158,
+    "duracion_min": 3,
+    "total_movimientos": 4,
+    "total_discrepancias": 4,
+    "total_huerfanos": 0,
+    "total_ejecutables": 4,
+    "por_accion": {
+      "traslado_individual": 4,
+      "traslado_masivo": 0,
+      "regularizacion": 0
+    },
+    "seg_por_movimiento": 40
+  },
+  "huerfanos": [],
+  "discrepancias": [
+    {
+      "lote": "18113",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-08-02",
+      "accion": "traslado_individual",
+      "timestamp": "2026-07-14T19:07:20",
+      "batch_id": null
+    },
+    {
+      "lote": "18113",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-08-02",
+      "accion": "traslado_individual",
+      "timestamp": "2026-07-14T19:07:20",
+      "batch_id": null
+    },
+    {
+      "lote": "13674",
+      "bin_sap": "A001-04A-06-02",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-08-02",
+      "accion": "traslado_individual",
+      "timestamp": "2026-07-14T19:08:13",
+      "batch_id": null
+    },
+    {
+      "lote": "23869",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-08-02",
+      "accion": "traslado_individual",
+      "timestamp": "2026-07-14T19:08:42",
+      "batch_id": null
+    }
+  ],
+  "movimientos": [
+    {
+      "lote": "18113",
+      "producto": "1000019538006",
+      "descripcion": "TELA PANT DRIL DW0004, MARRON",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-08-02",
+      "cantidad": 116200,
+      "unidad": "M",
+      "timestamp": "2026-07-14T19:07:20",
+      "accion": "traslado_individual",
+      "huerfano": false,
+      "batch_id": null
+    },
+    {
+      "lote": "18113",
+      "producto": "1000019538006",
+      "descripcion": "TELA PANT DRIL DW0004, MARRON",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-08-02",
+      "cantidad": 116200,
+      "unidad": "M",
+      "timestamp": "2026-07-14T19:07:20",
+      "accion": "traslado_individual",
+      "huerfano": false,
+      "batch_id": null
+    },
+    {
+      "lote": "13674",
+      "producto": "1000019538006",
+      "descripcion": "TELA PANT DRIL DW0004, MARRON",
+      "bin_sap": "A001-04A-06-02",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-08-02",
+      "cantidad": 88800,
+      "unidad": "M",
+      "timestamp": "2026-07-14T19:08:13",
+      "accion": "traslado_individual",
+      "huerfano": false,
+      "batch_id": null
+    },
+    {
+      "lote": "23869",
+      "producto": "1000019538012",
+      "descripcion": "TELA PANT DRIL DW0004, COCOA",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-08-02",
+      "cantidad": 67100,
+      "unidad": "M",
+      "timestamp": "2026-07-14T19:08:42",
+      "accion": "traslado_individual",
+      "huerfano": false,
+      "batch_id": null
+    }
+  ]
+}
