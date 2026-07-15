@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'wms-rollos-v2.3.4';
+const CACHE_VERSION = 'wms-rollos-v2.3.5';
 const CORE_ASSETS = [
   './',
   './index.html',

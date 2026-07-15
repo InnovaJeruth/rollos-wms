@@ -1373,49 +1373,54 @@
     show('screen-reg-scan');
   }
 
+  const _regScanLock = new Set(); // evita doble procesamiento por doble-disparo del scanner
+
   async function addRegScan(loteRaw) {
     if (!state.currentBatch || state.currentBatch.modo !== 'regularizacion') return;
     const lote = normLote(loteRaw);
     if (!lote || lote === '0') { flash('Lote vacio', 'err'); return; }
 
-    // Duplicado en este batch
-    const dup = state.currentBatch.escaneados.find((e) => e.lote === lote);
-    if (dup) {
-      flash('Lote ' + lote + ' ya escaneado en este estante', 'err');
-      document.getElementById('inp-reg-scan').value = '';
-      return;
-    }
-    // Duplicado en la sesion (otro estante ya lo registró)
-    const enSesion = state.sesion && (state.sesion.movimientos || []).find(
-      (m) => m.accion === 'regularizacion' && normLote(m.lote) === lote
-    );
-    if (enSesion) {
-      flash('Lote ' + lote + ' ya registrado en este turno (estante: ' + (enSesion.bin_real || '-') + ')', 'err');
-      document.getElementById('inp-reg-scan').value = '';
-      return;
-    }
-
-    const inv = await lookupInventario(lote);
-    const binFisico = state.currentBatch.bin_fisico;
-    let accion_calc;
-    if (!inv) {
-      accion_calc = 'huerfano';
-    } else if (normBin(inv.ubicacion || '') === normBin(binFisico)) {
-      accion_calc = 'noop';
-    } else {
-      accion_calc = 'mover';
-    }
-    state.currentBatch.escaneados.push({
-      lote: lote,
-      inv: inv || null,
-      accion_calc: accion_calc
-    });
-    await persistBatch();
+    // Limpiar el campo YA antes de cualquier await — el scanner no puede re-leer lo mismo
     document.getElementById('inp-reg-scan').value = '';
-    renderRegList();
-    if (accion_calc === 'noop') flash('✓ Ya estaba aqui', 'ok');
-    else if (accion_calc === 'huerfano') flash('⚠ Rollo huerfano (no en SAP)', '');
-    else flash('↻ Regularizara desde ' + inv.ubicacion, '');
+
+    // Lock por lote: si este lote ya está siendo procesado (doble disparo), ignorar
+    if (_regScanLock.has(lote)) return;
+    _regScanLock.add(lote);
+
+    try {
+      // Duplicado en este batch
+      if (state.currentBatch.escaneados.find((e) => e.lote === lote)) {
+        flash('Lote ' + lote + ' ya escaneado en este estante', 'err');
+        return;
+      }
+      // Duplicado en la sesion (otro estante ya lo registró)
+      const enSesion = state.sesion && (state.sesion.movimientos || []).find(
+        (m) => m.accion === 'regularizacion' && normLote(m.lote) === lote
+      );
+      if (enSesion) {
+        flash('Lote ' + lote + ' ya registrado en este turno (estante: ' + (enSesion.bin_real || '-') + ')', 'err');
+        return;
+      }
+
+      const inv = await lookupInventario(lote);
+      const binFisico = state.currentBatch.bin_fisico;
+      let accion_calc;
+      if (!inv) {
+        accion_calc = 'huerfano';
+      } else if (normBin(inv.ubicacion || '') === normBin(binFisico)) {
+        accion_calc = 'noop';
+      } else {
+        accion_calc = 'mover';
+      }
+      state.currentBatch.escaneados.push({ lote, inv: inv || null, accion_calc });
+      await persistBatch();
+      renderRegList();
+      if (accion_calc === 'noop') flash('✓ Ya estaba aqui', 'ok');
+      else if (accion_calc === 'huerfano') flash('⚠ Rollo huerfano (no en SAP)', '');
+      else flash('↻ Regularizara desde ' + inv.ubicacion, '');
+    } finally {
+      _regScanLock.delete(lote);
+    }
   }
 
   function renderRegList() {
