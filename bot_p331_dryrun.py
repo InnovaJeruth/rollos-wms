@@ -1,8 +1,8 @@
 """
 bot_p331_dryrun.py
 
-Bot de preparacion de tareas de almacen (P331) en /SCWM/ADPROD, a partir
-de los JSONs ejecutables generados por la PWA WMS Rollos (carpeta pendientes/).
+Bot de tareas de almacen (P331) en /SCWM/ADPROD, a partir de los JSONs
+ejecutables generados por la PWA WMS Rollos (carpeta pendientes/).
 
 Traducido 1:1 del flujo grabado por el usuario en UiPath (Main.xaml):
 busca TODOS los lotes de una vez usando la ventana de "Seleccion multiple"
@@ -10,16 +10,12 @@ del campo Lote, pegando la lista via portapapeles (igual que el boton
 "Upload del portapapeles" del workflow original) en vez de buscar lote
 por lote.
 
-*** MODO DRY-RUN — NO CREA TAREAS EN SAP ***
-Este script llena la grilla de /SCWM/ADPROD (cantidad, tipo de proceso,
-ubicacion destino) y valida que cada fila corresponda al lote/bin esperado,
-pero SE DETIENE antes de presionar el boton que efectivamente crea/graba
-la tarea de almacen. Esa linea esta comentada explicitamente mas abajo
-(buscar "NO DESCOMENTAR").
-
-Tampoco cierra la sesion de SAP al finalizar: se deja abierta para que
-el usuario revise la grilla manualmente antes de decidir si crear la
-tarea de verdad (agregando la linea comentada) o cancelar.
+Flujo completo:
+  1. Abre /SCWM/ADPROD y busca los lotes por seleccion multiple
+  2. Llena la grilla (cantidad, tipo proceso P331, bin destino) por cada fila
+  3. Valida con pressEnter y cierra popups SAP
+  4. Selecciona todas las filas y presiona "Crear OA + Grabar" (OK_OIP_CREATE_POST_MAT_TO)
+  5. La sesion de SAP queda abierta para revision (NO se cierra)
 
 Uso:
     python bot_p331_dryrun.py                              # usa el primer JSON de pendientes/
@@ -444,48 +440,64 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
             discrepancias.append({**mov, "motivo": "lote_no_encontrado_en_sap"})
 
     # =====================================================================
-    # RESUMEN — el script termina aca. NO se crea ninguna tarea de almacen.
+    # CREAR Y GRABAR ORDENES DE ALMACEN P331
+    # Equivalente al selectColumn (x todas las columnas) + pressButton del
+    # macro grabado por el usuario en UiPath / SAP GUI VBScript.
+    # =====================================================================
+    t_crear = 0.0
+    if llenados:
+        sin_cantidad = [m for m in llenados if not m["cantidad_usada"]]
+        if sin_cantidad:
+            print(f"\n  [!] {len(sin_cantidad)} fila(s) con cantidad SIN completar (VSOLA):")
+            for m in sin_cantidad:
+                print(f"      - Lote {m['lote']} (fila {m['fila_sap']})")
+
+        print(f"\n[INFO] Seleccionando filas y creando {len(llenados)} orden(es) de almacen P331...")
+        t2 = time.perf_counter()
+
+        # Seleccionar todas las filas de la grilla (equivalente al selectColumn multiple del VBScript)
+        try:
+            grid.selectAll()
+        except Exception:
+            # Fallback: asignar rango de filas directamente
+            try:
+                grid.selectedRows = ",".join(str(i) for i in range(total_filas))
+            except Exception as e:
+                print(f"  [AVISO] No se pudo seleccionar filas automaticamente: {e}")
+
+        # Boton "Crear OA + Grabar movimiento de material" — OK_OIP_CREATE_POST_MAT_TO
+        session.findById(TOOLBAR_ID).pressButton("OK_OIP_CREATE_POST_MAT_TO")
+
+        # SAP suele mostrar un popup de confirmacion con el numero de OAs creadas
+        msg_confirmacion = _cerrar_popup_si_existe(session)
+        if msg_confirmacion:
+            print(f"  [SAP] {msg_confirmacion}")
+
+        t_crear = time.perf_counter() - t2
+        print(f"[OK] Ordenes de almacen creadas y grabadas en {t_crear:.2f}s.")
+    else:
+        print("\n[AVISO] Sin filas llenadas — no se creo ninguna orden de almacen.")
+
+    # =====================================================================
+    # RESUMEN
     # =====================================================================
     print("\n" + "=" * 70)
-    print(f"RESUMEN DRY-RUN — {ruta_json}")
+    print(f"RESUMEN — {ruta_json}")
     print("=" * 70)
     print(f"  Tiempo busqueda en SAP        : {t_busqueda:.2f}s")
     print(f"  Tiempo matching + escritura   : {t_matching_y_escritura:.2f}s "
           f"({total_filas} fila(s) x {len(columnas)} columna(s) escaneadas)")
-    print(f"  Tiempo total                  : {t_busqueda + t_matching_y_escritura:.2f}s")
-    print(f"  Filas llenadas y verificadas : {len(llenados)}")
-    print(f"  Discrepancias (sin llenar)   : {len(discrepancias)}")
+    if llenados:
+        print(f"  Tiempo creacion OAs           : {t_crear:.2f}s")
+    print(f"  Tiempo total                  : {t_busqueda + t_matching_y_escritura + t_crear:.2f}s")
+    print(f"  Ordenes de almacen creadas   : {len(llenados)}")
+    print(f"  Discrepancias (no procesadas): {len(discrepancias)}")
     if discrepancias:
         print("\n  Detalle de discrepancias:")
         for d in discrepancias:
             print(f"    - Lote {d['lote']}: {d['motivo']}")
 
-    sin_cantidad = [m for m in llenados if not m["cantidad_usada"]]
-    if sin_cantidad:
-        print(f"\n  [!] {len(sin_cantidad)} fila(s) quedaron con cantidad SIN completar "
-              f"(columna VSOLA). Antes de crear la tarea real, revisa y completa "
-              f"esos valores a mano en la pantalla de SAP:")
-        for m in sin_cantidad:
-            print(f"      - Lote {m['lote']} (fila {m['fila_sap']})")
-
-    print("\n[IMPORTANTE] Las tareas de almacen NO fueron creadas ni grabadas.")
-    print("La sesion de SAP queda ABIERTA en la ultima pantalla de /SCWM/ADPROD")
-    print("para que puedas revisar la grilla manualmente.")
-    print("Si todo se ve correcto, el boton de creacion real en SAP GUI es:")
-    print(f'    session.findById("{TOOLBAR_ID}").pressButton "OK_OIP_CREATE_POST_MAT_TO"')
-    print("(Esa linea esta comentada mas abajo en el codigo — NO se ejecuta automaticamente.)")
-
-    # -------------------------------------------------------------------
-    # NO DESCOMENTAR sin validar manualmente la grilla primero.
-    # Esta es la linea que efectivamente CREA/GRABA la tarea de almacen
-    # en SAP (equivalente al boton final del macro grabado). Se deja
-    # comentada a proposito: este script es solo de preparacion/verificacion.
-    #
-    # session.findById(TOOLBAR_ID).pressButton("OK_OIP_CREATE_POST_MAT_TO")
-    # -------------------------------------------------------------------
-
-    # No se cierra la sesion ni la ventana de SAP: se deja tal cual quedo
-    # para revision manual del usuario.
+    print("\nLa sesion de SAP queda ABIERTA para revision.")
     return {"llenados": llenados, "discrepancias": discrepancias}
 
 

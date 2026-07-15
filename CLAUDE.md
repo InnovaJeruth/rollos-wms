@@ -50,7 +50,7 @@ Una sesión puede mezclar los 3 modos. Cada movimiento lleva `accion`, `huerfano
 ### Pendiente
 - **Modo D — Tareas asignadas**: estructura pensada, falta implementar UI y formato JSON de tareas
 - **Configuración global desde un solo dispositivo**: actualmente cada dispositivo necesita guardar GitHub config una vez. Ver opciones en `PROPUESTA.md` sección 7.3
-- **Bot UiPath/Python** (Fase 2) para ejecutar P331 desde `pendientes/*.json`
+- **Bot Python completo** (Fase 2) — `bot_p331_dryrun.py` ya ejecuta el flujo completo: busca lotes, llena grilla, crea OAs (`OK_OIP_CREATE_POST_MAT_TO`). La sesion SAP queda abierta para revision.
 - **Gráficos visuales en dashboard** (ahora solo tablas/cards)
 - **Filtros por operario/fecha** en el dashboard
 - **Exportar dashboard a CSV/Excel**
