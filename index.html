@@ -637,8 +637,8 @@
     body.is-handheld #conf-producto,
     body.is-handheld #conf-descripcion,
     body.is-handheld #conf-producto-label { display: none; }
-    body.is-handheld #screen-confirm-bin .yesno { flex: 1; align-items: stretch; }
-    body.is-handheld #screen-confirm-bin .yesno .btn { flex: 1; min-height: unset; font-size: 20px; font-weight: 700; }
+    body.is-handheld #screen-confirm-bin .yesno { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; gap: 8px; min-height: 80px; }
+    body.is-handheld #screen-confirm-bin .yesno .btn { min-height: unset; height: 100%; font-size: 28px; font-weight: 700; display: grid !important; place-items: center; padding: 0; }
 
     /* --- Grids y listas --- */
     body.is-handheld .summary-grid { gap: 3px; margin-bottom: 3px; }
