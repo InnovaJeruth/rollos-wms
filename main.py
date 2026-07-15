@@ -13,6 +13,7 @@ import threading
 import datetime
 import logging
 import tkinter as tk
+from tkinter import font as tkfont
 
 # ── Logging a archivo ────────────────────────────────────────────────────────
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -61,6 +62,135 @@ WARN_BG  = "#2a2410"
 WARN_FG  = "#e8c85d"
 ERR_BG   = "#2d0e0e"
 ERR_FG   = "#e87b5d"
+ORANGE   = "#c85a00"
+ORANGE_H = "#a04800"
+
+
+# ── Dialogo de conflictos ────────────────────────────────────────────────────
+
+class ConflictDialog(tk.Toplevel):
+    """
+    Modal que muestra lotes con destinos conflictivos y pide al admin
+    elegir el destino correcto para cada uno.
+    Cierra con self.result = list de entries resueltas, o None si cancelo.
+    """
+
+    def __init__(self, parent, conflictos):
+        super().__init__(parent)
+        self.title("Conflictos de destino — WMS")
+        self.configure(bg=BG)
+        self.resizable(False, False)
+        self.grab_set()          # modal
+        self.result = None
+
+        self._vars = []          # una tk.StringVar por conflicto
+
+        # Titulo
+        tk.Label(self, text="⚠  Conflictos de destino",
+                 font=("Segoe UI", 14, "bold"), bg=BG, fg=WARN_FG
+                 ).pack(padx=24, pady=(20, 4))
+        tk.Label(self,
+                 text="El mismo lote fue escaneado con destinos distintos.\n"
+                      "Elige el destino correcto para cada uno:",
+                 font=("Segoe UI", 10), bg=BG, fg=WHITE, justify="left"
+                 ).pack(padx=24, pady=(0, 12))
+
+        # Frame con scroll si hay muchos
+        container = tk.Frame(self, bg=BG)
+        container.pack(fill="both", expand=True, padx=24)
+
+        canvas = tk.Canvas(container, bg=BG, highlightthickness=0,
+                           width=420, height=min(320, len(conflictos) * 110 + 20))
+        scrollbar = tk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+
+        inner = tk.Frame(canvas, bg=BG)
+        canvas_win = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+        def _on_resize(e):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            canvas.itemconfig(canvas_win, width=canvas.winfo_width())
+        inner.bind("<Configure>", _on_resize)
+
+        for i, conf in enumerate(conflictos):
+            lote       = conf["lote"]
+            desc       = conf["descripcion"]
+            opciones   = conf["opciones"]
+
+            # Separador entre items
+            if i > 0:
+                tk.Frame(inner, height=1, bg=SEP).pack(fill="x", pady=6)
+
+            tk.Label(inner,
+                     text=f"Lote: {lote}",
+                     font=("Segoe UI", 11, "bold"), bg=BG, fg=WHITE, anchor="w"
+                     ).pack(fill="x")
+            if desc:
+                tk.Label(inner,
+                         text=desc,
+                         font=("Segoe UI", 9), bg=BG, fg=MUTED, anchor="w"
+                         ).pack(fill="x")
+
+            var = tk.StringVar(value=opciones[0]["bin_destino"])
+            self._vars.append((var, conf))
+
+            for opt in opciones:
+                dest  = opt["bin_destino"]
+                op    = opt["operario"]
+                ts    = (opt["timestamp"] or "")[:16].replace("T", " ")
+                label = f"  {dest}   (por {op}{('  ' + ts) if ts else ''})"
+                tk.Radiobutton(inner, text=label, variable=var, value=dest,
+                               font=("Segoe UI", 10), bg=BG, fg=BLUE_LT,
+                               activebackground=BG, selectcolor=BG2,
+                               anchor="w"
+                               ).pack(fill="x")
+
+        # Botones
+        btn_frame = tk.Frame(self, bg=BG)
+        btn_frame.pack(fill="x", padx=24, pady=16)
+
+        tk.Button(btn_frame, text="Cancelar",
+                  font=("Segoe UI", 11), bg=BG2, fg=MUTED,
+                  activebackground=SEP, activeforeground=WHITE,
+                  relief="flat", bd=0, pady=8, cursor="hand2",
+                  command=self._cancel
+                  ).pack(side="left", fill="x", expand=True, padx=(0, 6))
+
+        tk.Button(btn_frame, text="Ejecutar con estas opciones",
+                  font=("Segoe UI", 11, "bold"), bg=ORANGE, fg=WHITE,
+                  activebackground=ORANGE_H, activeforeground=WHITE,
+                  relief="flat", bd=0, pady=8, cursor="hand2",
+                  command=self._confirm
+                  ).pack(side="left", fill="x", expand=True)
+
+        self.update_idletasks()
+        # Centrar sobre la ventana padre
+        pw = parent.winfo_rootx() + parent.winfo_width() // 2
+        ph = parent.winfo_rooty() + parent.winfo_height() // 2
+        w  = self.winfo_reqwidth()
+        h  = self.winfo_reqheight()
+        self.geometry(f"+{pw - w // 2}+{ph - h // 2}")
+
+    def _cancel(self):
+        self.result = None
+        self.destroy()
+
+    def _confirm(self):
+        """
+        Para cada conflicto, devuelve la entrada cuyo bin_destino coincide
+        con la seleccion del admin.
+        """
+        resueltos = []
+        for var, conf in self._vars:
+            elegido = var.get()
+            entry   = next((o for o in conf["opciones"] if o["bin_destino"] == elegido),
+                           conf["opciones"][0])
+            resueltos.append(entry)
+        self.result = resueltos
+        self.destroy()
 
 
 class WMSApp:
@@ -77,6 +207,9 @@ class WMSApp:
         self._anim_x = -90.0
         self._anim_id = None
         self._pendientes = 0
+
+        # Datos de la ultima consolidacion (unicos, conflictos, por_archivo)
+        self._pending_data = None
 
         self._build_ui()
         self._refresh_pendientes()
@@ -251,17 +384,48 @@ class WMSApp:
     def _on_registrar(self):
         if self._pendientes == 0:
             return
-        self._set_busy(True)
-        self._show_status("Moviendo rollos...", "info")
-        self.lbl_footer.config(text="Por favor espera...")
-        threading.Thread(target=self._run_registrar, daemon=True).start()
 
-    def _run_registrar(self):
+        # Si hay conflictos conocidos, mostrar dialogo antes de ejecutar
+        if self._pending_data and self._pending_data[1]:
+            unicos, conflictos, por_archivo = self._pending_data
+            dlg = ConflictDialog(self.root, conflictos)
+            self.root.wait_window(dlg)
+            if dlg.result is None:
+                # Admin cancelo
+                return
+            # Combinar unicos + resolucion de conflictos
+            unicos_resueltos = unicos + dlg.result
+            self._set_busy(True)
+            self._show_status("Moviendo rollos...", "info")
+            self.lbl_footer.config(text="Por favor espera...")
+            threading.Thread(
+                target=self._run_registrar_explicit,
+                args=(unicos_resueltos, por_archivo),
+                daemon=True,
+            ).start()
+        else:
+            self._set_busy(True)
+            self._show_status("Moviendo rollos...", "info")
+            self.lbl_footer.config(text="Por favor espera...")
+            unicos    = self._pending_data[0] if self._pending_data else None
+            por_arch  = self._pending_data[2] if self._pending_data else None
+            threading.Thread(
+                target=self._run_registrar_explicit,
+                args=(unicos, por_arch),
+                daemon=True,
+            ).start()
+
+    def _run_registrar_explicit(self, unicos, por_archivo):
         try:
-            logging.info("Iniciando registro de movimientos P331")
-            resultado = runner_p331.run_all(
-                log_callback=lambda m: logging.info(m)
-            )
+            logging.info("Iniciando registro de movimientos P331 (lista explicita)")
+            if unicos is None or por_archivo is None:
+                # Fallback: descarga y consolida en el momento
+                resultado = runner_p331.run_all(log_callback=lambda m: logging.info(m))
+            else:
+                resultado = runner_p331.run_explicit(
+                    unicos, por_archivo,
+                    log_callback=lambda m: logging.info(m),
+                )
             d = resultado["con_discrepancias"]
             e = resultado["errores"]
             r = resultado.get("total_llenados", resultado["procesados"])
@@ -280,62 +444,70 @@ class WMSApp:
     # ── Conteo de pendientes (se actualiza al abrir y despues de cada tarea) ─
 
     def _refresh_pendientes(self):
+        self._pending_data = None
         threading.Thread(target=self._fetch_count, daemon=True).start()
 
     def _fetch_count(self):
         try:
             archivos = gh.listar_pendientes()
-            total_rollos = 0
-            for f in archivos:
-                try:
-                    data = gh.descargar_json(f["path"])
-                    movs = data.get("movimientos", [])
-                    seen = set()
-                    for m in movs:
-                        if m.get("huerfano"):
-                            continue
-                        if (m.get("accion") or "") == "noop":
-                            continue
-                        lote = (m.get("lote") or "").strip().upper()
-                        bin_origen = (m.get("bin_origen") or m.get("bin_real") or m.get("bin_sap") or "").strip()
-                        bin_destino = (m.get("bin_destino") or "").strip()
-                        if not lote or not bin_destino:
-                            continue
-                        key = (lote, bin_origen, bin_destino)
-                        if key not in seen:
-                            seen.add(key)
-                            total_rollos += 1
-                except Exception:
-                    pass
-            self._queue.put(("count", total_rollos))
-            logging.info(f"Rollos ejecutables P331 en GitHub: {total_rollos} (en {len(archivos)} archivo(s))")
+            if not archivos:
+                self._queue.put(("count_data", (0, 0, None)))
+                return
+
+            unicos, conflictos, por_archivo = runner_p331.consolidar_movimientos(archivos)
+            total = len(unicos) + len(conflictos)  # conflictos cuentan como 1 rollo c/u
+            logging.info(
+                f"Pendientes: {len(unicos)} unicos, {len(conflictos)} conflictos "
+                f"en {len(archivos)} archivo(s)"
+            )
+            self._queue.put(("count_data", (total, len(conflictos), (unicos, conflictos, por_archivo))))
         except Exception as e:
             logging.warning(f"No se pudo consultar GitHub: {e}")
-            self._queue.put(("count", -1))
+            self._queue.put(("count_data", (-1, 0, None)))
 
-    def _apply_count(self, count: int):
-        self._pendientes = count
+    def _apply_count(self, total: int, n_conflicts: int, pending_data):
+        self._pending_data  = pending_data
+        self._pendientes    = total
         self.btn_refresh.config(text="↻  Actualizar", state="normal", cursor="hand2")
-        if count < 0:
-            # Sin conexion a GitHub
+
+        if total < 0:
             self.btn_reg.config(
                 text="▶   Registrar movimientos",
                 bg=DIS_BG, fg=DIS_FG, state="disabled", cursor="arrow",
             )
             self.lbl_footer.config(text="Sin conexion a GitHub")
-        elif count == 0:
+
+        elif total == 0:
             self.btn_reg.config(
                 text="▶   Registrar movimientos  (0 rollos)",
                 bg=DIS_BG, fg=DIS_FG, state="disabled", cursor="arrow",
             )
             self.lbl_footer.config(text="SAP activo · Sin rollos ejecutables P331")
-        else:
+
+        elif n_conflicts > 0:
+            label = (
+                f"▶   Registrar movimientos  ({total} rollo{'s' if total != 1 else ''}  "
+                f"· ⚠ {n_conflicts} conflicto{'s' if n_conflicts != 1 else ''})"
+            )
             self.btn_reg.config(
-                text=f"▶   Registrar movimientos  ({count} rollo{'s' if count != 1 else ''})",
-                bg=BLUE, fg=WHITE, state="normal", cursor="hand2",
+                text=label,
+                bg=ORANGE, fg=WHITE,
+                activebackground=ORANGE_H, activeforeground=WHITE,
+                state="normal", cursor="hand2",
             )
             self.lbl_footer.config(
-                text=f"SAP activo · {count} rollo{'s' if count != 1 else ''} ejecutable{'s' if count != 1 else ''} P331 en GitHub"
+                text=f"SAP activo · {total} rollo(s) · {n_conflicts} conflicto(s) de destino"
+            )
+
+        else:
+            self.btn_reg.config(
+                text=f"▶   Registrar movimientos  ({total} rollo{'s' if total != 1 else ''})",
+                bg=BLUE, fg=WHITE,
+                activebackground=BLUE_H, activeforeground=WHITE,
+                state="normal", cursor="hand2",
+            )
+            self.lbl_footer.config(
+                text=f"SAP activo · {total} rollo{'s' if total != 1 else ''} ejecutable{'s' if total != 1 else ''} P331 en GitHub"
             )
 
     # ── Cola thread-safe ─────────────────────────────────────────────────────
@@ -343,14 +515,24 @@ class WMSApp:
     def _poll_queue(self):
         try:
             while True:
-                kind, data = self._queue.get_nowait()
-                if kind == "count":
-                    self._apply_count(data)
+                msg = self._queue.get_nowait()
+                kind = msg[0]
+
+                if kind == "count_data":
+                    _, (total, n_conf, pdata) = msg
+                    self._apply_count(total, n_conf, pdata)
+
+                elif kind == "count":
+                    # Compatibilidad con mensajes count simples (sin conflictos)
+                    self._apply_count(msg[1], 0, None)
+
                 else:
+                    status_kind, data = kind, msg[1]
                     self._set_busy(False)
-                    self._show_status(data, kind)
+                    self._show_status(data, status_kind)
                     # Actualizar conteo 1 segundo despues de terminar
                     self.root.after(1000, self._refresh_pendientes)
+
         except queue.Empty:
             pass
         self.root.after(100, self._poll_queue)
