@@ -692,9 +692,13 @@
       porOperario[op].turnos += 1;
       porOperario[op].movs += movs.length;
       porOperario[op].seg += k.duracion_seg || 0;
-      // Recopilar mal ubicados (bin_sap != bin_real)
+      // Recopilar mal ubicados (bin_sap != bin_real), dedup por lote dentro de la sesion
+      const seenLotes = new Set();
       movs.filter((m) => m.discrepancia && m.bin_sap && m.bin_real && m.bin_sap !== m.bin_real)
-          .forEach((m) => malUbicados.push({ ...m, operario: op }));
+          .forEach((m) => {
+            const k = String(m.lote || '').replace(/^0+/, '') || m.lote;
+            if (!seenLotes.has(k)) { seenLotes.add(k); malUbicados.push({ ...m, operario: op }); }
+          });
     }
 
     _dashboardMovs = [];

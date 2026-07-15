@@ -1385,6 +1385,15 @@
       document.getElementById('inp-reg-scan').value = '';
       return;
     }
+    // Duplicado en la sesion (otro estante ya lo registró)
+    const enSesion = state.sesion && (state.sesion.movimientos || []).find(
+      (m) => m.accion === 'regularizacion' && normLote(m.lote) === lote
+    );
+    if (enSesion) {
+      flash('Lote ' + lote + ' ya registrado en este turno (estante: ' + (enSesion.bin_real || '-') + ')', 'err');
+      document.getElementById('inp-reg-scan').value = '';
+      return;
+    }
 
     const inv = await lookupInventario(lote);
     const binFisico = state.currentBatch.bin_fisico;
@@ -1468,9 +1477,16 @@
     if (!b || b.modo !== 'regularizacion') return;
     if (!b.escaneados.length) { flash('No has escaneado nada', 'err'); return; }
     // Solo genera movimientos para mover/huerfano (noop no genera nada en SAP)
+    // Deduplica: un lote puede haberse colado desde otro batch de la misma sesion
+    const lotesSesion = new Set(
+      (state.sesion && state.sesion.movimientos || [])
+        .filter((m) => m.accion === 'regularizacion')
+        .map((m) => normLote(m.lote))
+    );
     let n = 0;
     for (const e of b.escaneados) {
       if (e.accion_calc === 'noop') continue;
+      if (lotesSesion.has(e.lote)) continue;
       const mov = buildMov({
         lote: e.lote,
         producto: e.inv ? e.inv.producto : '',
