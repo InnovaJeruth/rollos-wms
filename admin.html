@@ -674,12 +674,12 @@
         else
           sapCell = `<span style="color:var(--accent-2);">en SAP</span>`;
       }
-      const desc        = (m.descripcion || '').length > 26 ? (m.descripcion || '').slice(0, 24) + '…' : (m.descripcion || '—');
+      const desc        = m.descripcion || '—';
       const loteDisplay = String(m.lote || '').padStart(10, '0');
       return `<tr>
         <td>${m.operario}</td>
         <td style="font-family:monospace;font-size:12px;">${loteDisplay}</td>
-        <td title="${m.descripcion || ''}">${desc}</td>
+        <td style="word-break:break-word;min-width:120px;">${desc}</td>
         <td style="color:var(--warn);">${m.bin_sap}</td>
         <td style="color:var(--accent);">${m.bin_real}</td>
         <td>${m.bin_destino || '—'}</td>
@@ -758,7 +758,7 @@
         if (m.resultado_sap === 'ok') enviados_ok_set.add(lnorm);
       });
     });
-    const totEnviados = enviados_ok_set.size;
+    const totEnviados = Object.keys(_procesadosLoteMap).length;
 
     // ── Acumular KPIs ─────────────────────────────────────────────────────────
     const pendientesLocal = await WMS.dbGetAll(WMS.STORES.pendientes);
@@ -821,12 +821,15 @@
     _dashboardMovs.forEach((m) => { if (m._fecha in porDia) porDia[m._fecha]++; });
     const diasEntries = Object.entries(porDia);
     const maxDia      = Math.max(...diasEntries.map(([, c]) => c), 1);
-    const barChartHtml = `<div style="display:flex;align-items:flex-end;gap:4px;height:72px;">
+    const barChartHtml = `<div style="display:flex;align-items:flex-end;gap:4px;height:88px;">
       ${diasEntries.map(([f, c]) => {
         const pct = c > 0 ? Math.max(Math.round((c / maxDia) * 100), 8) : 0;
-        return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:3px;height:100%;">
-          <div title="${f}: ${c}" style="width:100%;background:var(--accent-2);border-radius:3px 3px 0 0;margin-top:auto;height:${pct}%;opacity:${c>0?0.85:0.15};"></div>
-          <div style="font-size:9px;color:var(--text-dim);">${f.slice(5)}</div>
+        return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;height:100%;">
+          <div style="font-size:10px;color:var(--text-dim);height:14px;line-height:14px;text-align:center;">${c > 0 ? c : ''}</div>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;width:100%;">
+            <div title="${f}: ${c}" style="width:100%;background:var(--accent-2);border-radius:3px 3px 0 0;height:${pct}%;opacity:${c>0?0.85:0.15};"></div>
+          </div>
+          <div style="font-size:9px;color:var(--text-dim);height:14px;line-height:14px;">${f.slice(5)}</div>
         </div>`;
       }).join('')}
     </div>`;
@@ -844,7 +847,7 @@
       return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
         <div style="width:80px;font-size:12px;color:var(--text-dim);text-align:right;flex-shrink:0;">${m.label}</div>
         <div style="flex:1;background:var(--surface-2);border-radius:3px;height:22px;overflow:hidden;">
-          <div style="height:100%;width:${pct}%;background:${m.color};border-radius:3px;display:flex;align-items:center;padding:0 6px;font-size:11px;font-weight:600;color:#0f1117;">${m.val > 0 ? m.val : ''}</div>
+          ${m.val > 0 ? `<div style="height:100%;width:${pct}%;background:${m.color};border-radius:3px;display:flex;align-items:center;padding:0 6px;font-size:11px;font-weight:600;color:#0f1117;">${m.val}</div>` : ''}
         </div>
         <div style="width:30px;font-size:11px;color:var(--text-dim);text-align:right;flex-shrink:0;">${pctTotal}%</div>
       </div>`;
@@ -925,10 +928,10 @@
     html += '<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">';
     html += `<div class="kpi-card"><div class="label-strong">Turnos</div><div class="big-value">${turnosCount}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Movs totales</div><div class="big-value">${totMovs}</div></div>`;
-    html += `<div class="kpi-card"><div class="label-strong">Ejecutables P331</div><div class="big-value" style="color:var(--accent);">${totEjec}</div></div>`;
-    html += `<div class="kpi-card"><div class="label-strong">Mal ubicados</div><div class="big-value" style="color:var(--warn);">${totDiscr}</div></div>`;
+    html += `<div class="kpi-card"><div class="label-strong">Listos para SAP</div><div class="big-value" style="color:var(--accent);">${totEjec}</div></div>`;
+    html += `<div class="kpi-card"><div class="label-strong">Mal ubicados</div><div class="big-value" style="color:var(--warn);">${_malUbicados.length}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Sin estante (huerf)</div><div class="big-value" style="color:var(--error);">${totHuerf}</div></div>`;
-    html += `<div class="kpi-card"><div class="label-strong">Enviados a SAP &#10003;</div><div class="big-value" style="color:var(--accent);">${totEnviados}</div></div>`;
+    html += `<div class="kpi-card"><div class="label-strong">Procesados SAP</div><div class="big-value" style="color:var(--accent);">${totEnviados}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Tiempo total</div><div class="big-value">${fmtSeg(totSeg)}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Prom seg/mov</div><div class="big-value">${segPorMov}s</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Prom movs/turno</div><div class="big-value">${movsPorTurno}</div></div>`;
