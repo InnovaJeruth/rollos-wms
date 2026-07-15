@@ -123,6 +123,7 @@
     @media (min-width: 800px) {
       .menu-grid { grid-template-columns: repeat(4, 1fr); }
     }
+    body.is-handheld [data-go="dashboard"] { display: none; }
     .menu-card {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 14px; padding: 24px 16px; text-align: center;
@@ -336,6 +337,7 @@
       </div>
       <div class="btn-row" style="margin-top:10px;">
         <button class="btn" id="btn-dash-refresh">🔄 Recalcular</button>
+        <button class="btn secondary" id="btn-dash-export">⬇ Descargar CSV</button>
         <button class="btn secondary" id="btn-dash-clearcache">Borrar cache local</button>
       </div>
     </section>
@@ -355,6 +357,8 @@
     config: { repo: '', branch: 'main', token: '' },
     isLogged: false
   };
+
+  let _dashboardMovs = [];
 
   // ===========================================================
   // Navegacion + helpers UI
@@ -693,8 +697,15 @@
           .forEach((m) => malUbicados.push({ ...m, operario: op }));
     }
 
+    _dashboardMovs = [];
+
     // Auditorias de GitHub: ya traen .kpis precalculados
-    auditorias.forEach((a) => acumular(a, a.kpis));
+    auditorias.forEach((a) => {
+      acumular(a, a.kpis);
+      const op = a.operario || '?';
+      const fecha = a.fecha || '';
+      (a.movimientos || []).forEach((m) => _dashboardMovs.push({ ...m, _operario: op, _fecha: fecha }));
+    });
 
     // Pendientes locales (no subidos aun) — los agrego para que el conteo refleje tiempo real
     pendientesLocal.forEach((it) => {
@@ -794,9 +805,30 @@
   }
 
   // ===========================================================
+  function downloadMovimientosCSV() {
+    if (!_dashboardMovs.length) { flash('Primero recalcula el dashboard.', ''); return; }
+    const COLS = ['_fecha', '_operario', 'lote', 'producto', 'descripcion', 'bin_sap', 'bin_real',
+                  'bin_origen', 'bin_destino', 'cantidad', 'unidad', 'accion', 'huerfano', 'discrepancia'];
+    const HEADS = ['Fecha', 'Operario', 'Lote', 'Producto', 'Descripcion', 'Bin SAP', 'Bin real',
+                   'Bin origen', 'Bin destino', 'Cantidad', 'Unidad', 'Accion', 'Huerfano', 'Discrepancia'];
+    function esc(v) {
+      if (v === undefined || v === null) return '';
+      const s = String(v).replace(/"/g, '""');
+      return /[,"\n]/.test(s) ? `"${s}"` : s;
+    }
+    const lines = [HEADS.join(',')];
+    _dashboardMovs.forEach((m) => lines.push(COLS.map((c) => esc(m[c])).join(',')));
+    const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'movimientos_wms.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
+
   // Init
   // ===========================================================
   document.addEventListener('DOMContentLoaded', async () => {
+    if (window.innerWidth <= 480) document.body.classList.add('is-handheld');
     refreshNet();
 
     // Siempre pedir contraseña al entrar (no persistir sesion entre navegaciones)
@@ -864,6 +896,7 @@
 
     // Dashboard
     document.getElementById('btn-dash-refresh').addEventListener('click', renderDashboard);
+    document.getElementById('btn-dash-export').addEventListener('click', downloadMovimientosCSV);
     document.getElementById('btn-dash-clearcache').addEventListener('click', clearDashboardCache);
   });
 

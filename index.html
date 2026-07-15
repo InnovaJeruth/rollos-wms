@@ -637,7 +637,7 @@
     body.is-handheld #conf-producto,
     body.is-handheld #conf-descripcion,
     body.is-handheld #conf-producto-label { display: none; }
-    body.is-handheld #screen-confirm-bin .yesno { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; gap: 8px; min-height: 80px; }
+    body.is-handheld #screen-confirm-bin .yesno { height: 150px; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; gap: 8px; }
     body.is-handheld #screen-confirm-bin .yesno .btn { min-height: unset; height: 100%; font-size: 28px; font-weight: 700; display: grid !important; place-items: center; padding: 0; }
 
     /* --- Grids y listas --- */
@@ -1753,7 +1753,7 @@
       return;
     }
 
-    document.getElementById('conf-lote').textContent = inv.lote;
+    document.getElementById('conf-lote').textContent = /^\d+$/.test(String(inv.lote)) ? String(inv.lote).padStart(10, '0') : inv.lote;
     document.getElementById('conf-producto').textContent = inv.producto || '(sin codigo)';
     document.getElementById('conf-descripcion').textContent = inv.descripcion || '';
     document.getElementById('conf-bin-sap').textContent = inv.ubicacion;
