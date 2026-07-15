@@ -23,12 +23,14 @@ def consolidar_movimientos(archivos):
     - Detecta conflictos (mismo lote, destinos distintos)
 
     Retorna:
-      unicos    — list de {'mov', 'path', 'sha', 'operario', 'bin_destino', 'timestamp', 'lote_norm'}
-      conflictos — list de {'lote', 'descripcion', 'opciones': [...]}
-      por_archivo — dict path -> sha de todos los archivos
+      unicos          — list de {'mov', 'path', 'sha', 'operario', 'bin_destino', 'timestamp', 'lote_norm'}
+      conflictos      — list de {'lote', 'descripcion', 'opciones': [...]}
+      por_archivo     — dict path -> sha de todos los archivos
+      datos_por_archivo — dict path -> data dict (cache para evitar re-descarga al archivar)
     """
     por_lote = defaultdict(list)
     por_archivo = {}
+    datos_por_archivo = {}
 
     for item in archivos:
         path = item["path"]
@@ -37,6 +39,7 @@ def consolidar_movimientos(archivos):
 
         try:
             data     = gh.descargar_json(path)
+            datos_por_archivo[path] = data
             operario = data.get("operario", "?")
             movs     = data.get("movimientos", [])
 
@@ -91,15 +94,16 @@ def consolidar_movimientos(archivos):
                 "opciones":    opciones,
             })
 
-    return unicos, conflictos, por_archivo
+    return unicos, conflictos, por_archivo, datos_por_archivo
 
 
 # ── Ejecucion con lista explicita (post conflict-resolution) ─────────────────
 
-def run_explicit(unicos, por_archivo, log_callback=None):
+def run_explicit(unicos, por_archivo, datos_por_archivo=None, log_callback=None):
     """
     Ejecuta en SAP una lista ya deduplicada y con conflictos resueltos.
-    Archiva TODOS los archivos de por_archivo al terminar.
+    Archiva TODOS los archivos de por_archivo al terminar, anotando cada
+    movimiento con resultado_sap: 'ok' | 'error' antes de subir a procesados/.
     """
     def log(msg):
         logging.info(msg)
@@ -112,7 +116,7 @@ def run_explicit(unicos, por_archivo, log_callback=None):
 
     log(f"{len(unicos)} movimiento(s) consolidado(s) — ejecutando en SAP...")
 
-    data = {
+    tmp_data = {
         "schema":      "ejecutable_v1",
         "id":          "consolidado",
         "operario":    "CONSOLIDADO",
@@ -122,7 +126,7 @@ def run_explicit(unicos, por_archivo, log_callback=None):
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".json", delete=False, encoding="utf-8"
     ) as tmp:
-        json.dump(data, tmp, ensure_ascii=False)
+        json.dump(tmp_data, tmp, ensure_ascii=False)
         tmp_path = tmp.name
 
     try:
@@ -133,8 +137,27 @@ def run_explicit(unicos, por_archivo, log_callback=None):
         except OSError:
             pass
 
-    n_ok  = len(resultado.get("llenados", []))
-    n_err = len(resultado.get("discrepancias", []))
+    # Lookup: lote_norm → {resultado_sap, fila_sap?, motivo_sap?}
+    resultado_por_lote = {}
+    for item in resultado.get("llenados", []):
+        lraw  = str(item.get("lote") or "").strip().upper()
+        lnorm = lraw.lstrip("0") or lraw
+        if lnorm:
+            resultado_por_lote[lnorm] = {
+                "resultado_sap": "ok",
+                "fila_sap": item.get("fila_sap"),
+            }
+    for item in resultado.get("discrepancias", []):
+        lraw  = str(item.get("lote") or "").strip().upper()
+        lnorm = lraw.lstrip("0") or lraw
+        if lnorm and lnorm not in resultado_por_lote:
+            resultado_por_lote[lnorm] = {
+                "resultado_sap": "error",
+                "motivo_sap":    str(item.get("motivo") or "desconocido"),
+            }
+
+    n_ok    = len(resultado.get("llenados", []))
+    n_err   = len(resultado.get("discrepancias", []))
     carpeta = "procesados" if n_err == 0 else "discrepancias"
 
     if n_err == 0:
@@ -145,7 +168,37 @@ def run_explicit(unicos, por_archivo, log_callback=None):
     errores = 0
     for path, sha in por_archivo.items():
         try:
-            gh.archivar_pendiente(path, sha, carpeta)
+            # Usar cache si está disponible, evitar re-descarga
+            if datos_por_archivo and path in datos_por_archivo:
+                orig = datos_por_archivo[path]
+            else:
+                orig = gh.descargar_json(path)
+
+            # Anotar cada movimiento con el resultado SAP
+            movs_enriq = []
+            for m in orig.get("movimientos", []):
+                m     = dict(m)
+                lraw  = str(m.get("lote") or "").strip().upper()
+                lnorm = lraw.lstrip("0") or lraw
+                res   = resultado_por_lote.get(lnorm)
+                if res:
+                    m["resultado_sap"] = res["resultado_sap"]
+                    if res.get("fila_sap") is not None:
+                        m["fila_sap"] = res["fila_sap"]
+                    if res.get("motivo_sap"):
+                        m["motivo_sap"] = res["motivo_sap"]
+                movs_enriq.append(m)
+
+            data_enriq = {**orig, "movimientos": movs_enriq}
+            nombre     = os.path.basename(path)
+            path_dst   = f"{carpeta}/{nombre}"
+            gh.subir_archivo(
+                path_dst,
+                json.dumps(data_enriq, ensure_ascii=False),
+                f"bot: {carpeta} — {nombre}",
+            )
+            gh.eliminar_archivo(path, sha=sha,
+                                mensaje_commit=f"bot: mover a {carpeta} — {nombre}")
         except Exception as e:
             errores += 1
             log(f"Error archivando {path}: {e}")
@@ -178,10 +231,10 @@ def run_all(log_callback=None):
         return {"procesados": 0, "con_discrepancias": 0, "errores": 0, "total_llenados": 0}
 
     log(f"{len(pendientes)} archivo(s) en pendientes/ — consolidando...")
-    unicos, conflictos, por_archivo = consolidar_movimientos(pendientes)
+    unicos, conflictos, por_archivo, datos_por_archivo = consolidar_movimientos(pendientes)
 
     if conflictos:
         lotes = ", ".join(c["lote"] for c in conflictos)
         log(f"AVISO: {len(conflictos)} conflicto(s) omitidos (lotes: {lotes}). Resolver en la app.")
 
-    return run_explicit(unicos, por_archivo, log_callback)
+    return run_explicit(unicos, por_archivo, datos_por_archivo, log_callback)

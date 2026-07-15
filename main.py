@@ -208,7 +208,7 @@ class WMSApp:
         self._anim_id = None
         self._pendientes = 0
 
-        # Datos de la ultima consolidacion (unicos, conflictos, por_archivo)
+        # Datos de la ultima consolidacion (unicos, conflictos, por_archivo, datos_por_archivo)
         self._pending_data = None
 
         self._build_ui()
@@ -387,7 +387,7 @@ class WMSApp:
 
         # Si hay conflictos conocidos, mostrar dialogo antes de ejecutar
         if self._pending_data and self._pending_data[1]:
-            unicos, conflictos, por_archivo = self._pending_data
+            unicos, conflictos, por_archivo, datos_por_archivo = self._pending_data
             dlg = ConflictDialog(self.root, conflictos)
             self.root.wait_window(dlg)
             if dlg.result is None:
@@ -400,22 +400,23 @@ class WMSApp:
             self.lbl_footer.config(text="Por favor espera...")
             threading.Thread(
                 target=self._run_registrar_explicit,
-                args=(unicos_resueltos, por_archivo),
+                args=(unicos_resueltos, por_archivo, datos_por_archivo),
                 daemon=True,
             ).start()
         else:
             self._set_busy(True)
             self._show_status("Moviendo rollos...", "info")
             self.lbl_footer.config(text="Por favor espera...")
-            unicos    = self._pending_data[0] if self._pending_data else None
-            por_arch  = self._pending_data[2] if self._pending_data else None
+            unicos      = self._pending_data[0] if self._pending_data else None
+            por_arch    = self._pending_data[2] if self._pending_data else None
+            datos_por_a = self._pending_data[3] if self._pending_data else None
             threading.Thread(
                 target=self._run_registrar_explicit,
-                args=(unicos, por_arch),
+                args=(unicos, por_arch, datos_por_a),
                 daemon=True,
             ).start()
 
-    def _run_registrar_explicit(self, unicos, por_archivo):
+    def _run_registrar_explicit(self, unicos, por_archivo, datos_por_archivo=None):
         try:
             logging.info("Iniciando registro de movimientos P331 (lista explicita)")
             if unicos is None or por_archivo is None:
@@ -423,7 +424,7 @@ class WMSApp:
                 resultado = runner_p331.run_all(log_callback=lambda m: logging.info(m))
             else:
                 resultado = runner_p331.run_explicit(
-                    unicos, por_archivo,
+                    unicos, por_archivo, datos_por_archivo,
                     log_callback=lambda m: logging.info(m),
                 )
             d = resultado["con_discrepancias"]
@@ -454,13 +455,13 @@ class WMSApp:
                 self._queue.put(("count_data", (0, 0, None)))
                 return
 
-            unicos, conflictos, por_archivo = runner_p331.consolidar_movimientos(archivos)
+            unicos, conflictos, por_archivo, datos_por_archivo = runner_p331.consolidar_movimientos(archivos)
             total = len(unicos) + len(conflictos)  # conflictos cuentan como 1 rollo c/u
             logging.info(
                 f"Pendientes: {len(unicos)} unicos, {len(conflictos)} conflictos "
                 f"en {len(archivos)} archivo(s)"
             )
-            self._queue.put(("count_data", (total, len(conflictos), (unicos, conflictos, por_archivo))))
+            self._queue.put(("count_data", (total, len(conflictos), (unicos, conflictos, por_archivo, datos_por_archivo))))
         except Exception as e:
             logging.warning(f"No se pudo consultar GitHub: {e}")
             self._queue.put(("count_data", (-1, 0, None)))

@@ -328,8 +328,8 @@
       <button class="back-btn" data-back="menu">← Menu principal</button>
       <h1>📊 Dashboard de indicadores</h1>
       <p style="font-size:13px; color:var(--text-dim);">
-        KPIs sobre <strong>todas las sesiones publicadas en GitHub</strong> (carpeta <code>auditoria/</code>).
-        Los archivos descargados quedan en cache local; al refrescar solo se baja lo que cambio.
+        KPIs sobre <strong>todas las sesiones publicadas en GitHub</strong> (<code>auditoria/</code>) y ejecuciones SAP (<code>procesados/</code>).
+        Los archivos se cachean localmente; al refrescar solo se descarga lo que cambio.
       </p>
       <div id="dashboard-status" style="font-size:13px; color:var(--text-dim); margin-bottom:10px;"></div>
       <div id="dashboard-content">
@@ -359,6 +359,8 @@
   };
 
   let _dashboardMovs = [];
+  let _malUbicados = [];
+  let _procesadosLoteMap = {};
 
   // ===========================================================
   // Navegacion + helpers UI
@@ -621,6 +623,71 @@
   // ===========================================================
   // Dashboard
   // ===========================================================
+  async function loadProcesadosHistory(cfg, onProgress) {
+    const files = await WMS.listGitHubFolder(cfg, 'procesados');
+    const result = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      if (onProgress) try { onProgress(i + 1, files.length, f.name); } catch(e) {}
+      try {
+        const cached = await WMS.dbGet(WMS.STORES.config, 'proc:' + f.path);
+        if (cached && cached.sha === f.sha && cached.data) {
+          result.push({ ...cached.data, _path: f.path, _sha: f.sha });
+          continue;
+        }
+        const fc = await WMS.getGitHubFile(cfg, f.path);
+        if (!fc || !fc.content) continue;
+        const data = JSON.parse(fc.content);
+        await WMS.dbPut(WMS.STORES.config, { key: 'proc:' + f.path, sha: f.sha, data });
+        result.push({ ...data, _path: f.path, _sha: f.sha });
+      } catch(e) {}
+    }
+    return result;
+  }
+
+  function filtrarMalUbicados() {
+    const opFilt   = (document.getElementById('dash-filter-op')?.value || '');
+    const catFilt  = (document.getElementById('dash-filter-cat')?.value || '');
+    const loteFilt = (document.getElementById('dash-filter-lote')?.value || '').trim().toLowerCase();
+    const filtered = _malUbicados.filter((m) => {
+      if (opFilt  && m.operario !== opFilt) return false;
+      if (catFilt && m.accion   !== catFilt) return false;
+      if (loteFilt && !String(m.lote || '').toLowerCase().includes(loteFilt)) return false;
+      return true;
+    });
+    const tbody = document.getElementById('dash-malub-tbody');
+    if (!tbody) return;
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="7" style="color:var(--text-dim);text-align:center;padding:16px;">Sin resultados con estos filtros.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = filtered.map((m) => {
+      const lraw  = String(m.lote || '').trim().toUpperCase();
+      const lnorm = lraw.replace(/^0+/, '') || lraw;
+      const res   = _procesadosLoteMap[lnorm];
+      let sapCell = `<span style="color:var(--text-dim);font-size:11px;">sin datos</span>`;
+      if (res) {
+        if (res.resultado_sap === 'ok')
+          sapCell = `<span style="color:var(--accent);">&#10003; ok</span>`;
+        else if (res.resultado_sap === 'error')
+          sapCell = `<span style="color:var(--error);" title="${res.motivo_sap || ''}">&#10007; error</span>`;
+        else
+          sapCell = `<span style="color:var(--accent-2);">en SAP</span>`;
+      }
+      const desc        = (m.descripcion || '').length > 26 ? (m.descripcion || '').slice(0, 24) + '…' : (m.descripcion || '—');
+      const loteDisplay = String(m.lote || '').padStart(10, '0');
+      return `<tr>
+        <td>${m.operario}</td>
+        <td style="font-family:monospace;font-size:12px;">${loteDisplay}</td>
+        <td title="${m.descripcion || ''}">${desc}</td>
+        <td style="color:var(--warn);">${m.bin_sap}</td>
+        <td style="color:var(--accent);">${m.bin_real}</td>
+        <td>${m.bin_destino || '—'}</td>
+        <td>${sapCell}</td>
+      </tr>`;
+    }).join('');
+  }
+
   function fmtSeg(seg) {
     if (!seg || seg < 0) return '-';
     const m = Math.floor(seg / 60);
@@ -630,7 +697,7 @@
   }
 
   async function renderDashboard() {
-    const cont = document.getElementById('dashboard-content');
+    const cont   = document.getElementById('dashboard-content');
     const status = document.getElementById('dashboard-status');
 
     if (!state.config.repo || !state.config.token) {
@@ -644,13 +711,14 @@
       return;
     }
 
-    cont.innerHTML = '<div class="empty-state">Listando archivos en GitHub...</div>';
+    cont.innerHTML = '<div class="empty-state">Cargando datos desde GitHub...</div>';
     status.textContent = '';
 
+    // ── Auditorias ────────────────────────────────────────────────────────────
     let auditorias;
     try {
       auditorias = await WMS.loadAuditoriaHistory(state.config, (i, total, name) => {
-        status.textContent = `Descargando ${i}/${total}: ${name}`;
+        status.textContent = `Auditoria ${i}/${total}: ${name}`;
       });
     } catch (e) {
       cont.innerHTML = `<div class="empty-state" style="color:var(--error);">Error: ${e.message}</div>`;
@@ -658,21 +726,46 @@
       return;
     }
 
-    status.textContent = `${auditorias.length} sesiones cargadas desde GitHub (auditoria/)`;
+    // ── Procesados (resultados SAP por lote) ──────────────────────────────────
+    let procesadosList = [];
+    try {
+      procesadosList = await loadProcesadosHistory(state.config, (i, total, name) => {
+        status.textContent = `SAP ${i}/${total}: ${name}`;
+      });
+    } catch(e) { /* carpeta procesados/ puede no existir todavia */ }
+
+    status.textContent = `${auditorias.length} sesion(es) · ${procesadosList.length} archivo(s) SAP cargados`;
 
     if (!auditorias.length) {
       cont.innerHTML = '<div class="empty-state">Aun no hay sesiones publicadas en GitHub. Cuando los operarios terminen turnos y se sincronicen, apareceran aqui.</div>';
       return;
     }
 
-    // Agregar pendientes locales tambien (sesiones aun no subidas)
-    const pendientesLocal = await WMS.dbGetAll(WMS.STORES.pendientes);
+    // ── Lookup de resultados SAP por lote normalizado ─────────────────────────
+    _procesadosLoteMap = {};
+    const enviados_ok_set = new Set();
+    procesadosList.forEach((p) => {
+      (p.movimientos || []).forEach((m) => {
+        const lraw  = String(m.lote || '').trim().toUpperCase();
+        const lnorm = lraw.replace(/^0+/, '') || lraw;
+        if (!lnorm) return;
+        if (m.resultado_sap === 'ok' || !_procesadosLoteMap[lnorm]) {
+          _procesadosLoteMap[lnorm] = {
+            resultado_sap: m.resultado_sap || 'en_sap',
+            motivo_sap:    m.motivo_sap || '',
+          };
+        }
+        if (m.resultado_sap === 'ok') enviados_ok_set.add(lnorm);
+      });
+    });
+    const totEnviados = enviados_ok_set.size;
 
-    // Acumular KPIs
+    // ── Acumular KPIs ─────────────────────────────────────────────────────────
+    const pendientesLocal = await WMS.dbGetAll(WMS.STORES.pendientes);
     let totMovs = 0, totEjec = 0, totHuerf = 0, totDiscr = 0, totSeg = 0;
     const porAccion = { traslado_individual: 0, traslado_masivo: 0, regularizacion: 0 };
     const porOperario = {};
-    const malUbicados = [];
+    _malUbicados = [];
     let turnosCount = auditorias.length;
 
     function acumular(sessionLike, kpisCached) {
@@ -682,117 +775,206 @@
       totEjec += k.total_ejecutables || 0;
       totHuerf += k.total_huerfanos || 0;
       totDiscr += k.total_discrepancias || 0;
-      totSeg += k.duracion_seg || 0;
-      const pa = k.por_accion || WMS.resumenPorAccion(movs);
+      totSeg   += k.duracion_seg || 0;
+      const pa  = k.por_accion || WMS.resumenPorAccion(movs);
       porAccion.traslado_individual += pa.traslado_individual || 0;
-      porAccion.traslado_masivo += pa.traslado_masivo || 0;
-      porAccion.regularizacion += pa.regularizacion || 0;
+      porAccion.traslado_masivo     += pa.traslado_masivo || 0;
+      porAccion.regularizacion      += pa.regularizacion || 0;
       const op = sessionLike.operario || '?';
       if (!porOperario[op]) porOperario[op] = { turnos: 0, movs: 0, seg: 0 };
       porOperario[op].turnos += 1;
-      porOperario[op].movs += movs.length;
-      porOperario[op].seg += k.duracion_seg || 0;
-      // Recopilar mal ubicados (bin_sap != bin_real), dedup por lote dentro de la sesion
+      porOperario[op].movs   += movs.length;
+      porOperario[op].seg    += k.duracion_seg || 0;
       const seenLotes = new Set();
       movs.filter((m) => m.discrepancia && m.bin_sap && m.bin_real && m.bin_sap !== m.bin_real)
           .forEach((m) => {
-            const k = String(m.lote || '').replace(/^0+/, '') || m.lote;
-            if (!seenLotes.has(k)) { seenLotes.add(k); malUbicados.push({ ...m, operario: op }); }
+            const lk = String(m.lote || '').replace(/^0+/, '') || m.lote;
+            if (!seenLotes.has(lk)) { seenLotes.add(lk); _malUbicados.push({ ...m, operario: op }); }
           });
     }
 
     _dashboardMovs = [];
-
-    // Auditorias de GitHub: ya traen .kpis precalculados
     auditorias.forEach((a) => {
       acumular(a, a.kpis);
-      const op = a.operario || '?';
-      const fecha = a.fecha || '';
+      const op    = a.operario || '?';
+      const fecha = a.fecha    || '';
       (a.movimientos || []).forEach((m) => _dashboardMovs.push({ ...m, _operario: op, _fecha: fecha }));
     });
-
-    // Pendientes locales (no subidos aun) — los agrego para que el conteo refleje tiempo real
     pendientesLocal.forEach((it) => {
       const s = it.json || {};
-      // Si la sesion ya está en GitHub (mismo id), no la cuento doble
-      const yaEnGithub = auditorias.some((a) => a.id === s.id);
-      if (yaEnGithub) return;
+      if (auditorias.some((a) => a.id === s.id)) return;
       acumular(s);
       turnosCount++;
     });
 
-    const segPorMov = totMovs > 0 ? Math.round(totSeg / totMovs) : 0;
+    const segPorMov    = totMovs > 0 ? Math.round(totSeg / totMovs) : 0;
     const movsPorTurno = turnosCount > 0 ? (totMovs / turnosCount).toFixed(1) : '0';
 
+    // ── Ultimos 7 dias ────────────────────────────────────────────────────────
+    const hoy    = new Date();
+    const porDia = {};
+    for (let d = 6; d >= 0; d--) {
+      const f   = new Date(hoy);
+      f.setDate(hoy.getDate() - d);
+      porDia[f.toISOString().slice(0, 10)] = 0;
+    }
+    _dashboardMovs.forEach((m) => { if (m._fecha in porDia) porDia[m._fecha]++; });
+    const diasEntries = Object.entries(porDia);
+    const maxDia      = Math.max(...diasEntries.map(([, c]) => c), 1);
+    const barChartHtml = `<div style="display:flex;align-items:flex-end;gap:4px;height:72px;">
+      ${diasEntries.map(([f, c]) => {
+        const pct = c > 0 ? Math.max(Math.round((c / maxDia) * 100), 8) : 0;
+        return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:3px;height:100%;">
+          <div title="${f}: ${c}" style="width:100%;background:var(--accent-2);border-radius:3px 3px 0 0;margin-top:auto;height:${pct}%;opacity:${c>0?0.85:0.15};"></div>
+          <div style="font-size:9px;color:var(--text-dim);">${f.slice(5)}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+    // ── Por modalidad bars ────────────────────────────────────────────────────
+    const modos  = [
+      { label: 'Individual', val: porAccion.traslado_individual, color: 'var(--accent-2)' },
+      { label: 'Masivo',     val: porAccion.traslado_masivo,     color: 'var(--accent)'   },
+      { label: 'Regulariz.', val: porAccion.regularizacion,      color: 'var(--warn)'     },
+    ];
+    const maxModo   = Math.max(...modos.map((m) => m.val), 1);
+    const modoHtml  = modos.map((m) => {
+      const pct      = Math.round((m.val / maxModo) * 100);
+      const pctTotal = totMovs > 0 ? Math.round((m.val / totMovs) * 100) : 0;
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <div style="width:80px;font-size:12px;color:var(--text-dim);text-align:right;flex-shrink:0;">${m.label}</div>
+        <div style="flex:1;background:var(--surface-2);border-radius:3px;height:22px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${m.color};border-radius:3px;display:flex;align-items:center;padding:0 6px;font-size:11px;font-weight:600;color:#0f1117;">${m.val > 0 ? m.val : ''}</div>
+        </div>
+        <div style="width:30px;font-size:11px;color:var(--text-dim);text-align:right;flex-shrink:0;">${pctTotal}%</div>
+      </div>`;
+    }).join('');
+
+    // ── Historial SAP ─────────────────────────────────────────────────────────
+    let historialHtml = '';
+    if (procesadosList.length > 0) {
+      const filas = [...procesadosList]
+        .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))
+        .slice(0, 20)
+        .map((p) => {
+          const movs   = p.movimientos || [];
+          const nOk    = movs.filter((m) => m.resultado_sap === 'ok').length;
+          const nErr   = movs.filter((m) => m.resultado_sap === 'error').length;
+          const nSin   = movs.filter((m) => !m.resultado_sap).length;
+          const arch   = (p._path || '').split('/').pop().replace('.json', '');
+          const archSh = arch.length > 30 ? arch.slice(0, 28) + '…' : arch;
+          return `<tr>
+            <td style="font-family:monospace;font-size:11px;" title="${arch}">${archSh}</td>
+            <td>${p.operario || '?'}</td>
+            <td class="num">${nOk  > 0 ? `<span style="color:var(--accent);">${nOk}</span>`      : '—'}</td>
+            <td class="num">${nErr > 0 ? `<span style="color:var(--error);">${nErr}</span>`       : '—'}</td>
+            <td class="num">${nSin > 0 ? `<span style="color:var(--text-dim);">${nSin}</span>`    : '—'}</td>
+            <td>${p.fecha || '?'}</td>
+          </tr>`;
+        }).join('');
+      historialHtml = `<div class="card">
+        <div class="label-strong" style="margin-bottom:10px;">Historial de ejecucion SAP</div>
+        <div style="overflow-x:auto;">
+          <table class="kpi-table">
+            <tr><th>Archivo</th><th>Operario</th><th class="num">OK</th><th class="num">Errores</th><th class="num">Sin datos</th><th>Fecha</th></tr>
+            ${filas}
+          </table>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">"Sin datos" = ejecutado antes de la version del bot que registra resultado por lote.</div>
+      </div>`;
+    }
+
+    // ── Mal ubicados con filtros ──────────────────────────────────────────────
+    let malUbHtml = '';
+    if (_malUbicados.length > 0) {
+      const opSet      = new Set(_malUbicados.map((m) => m.operario));
+      const opOptions  = Array.from(opSet).sort().map((op) => `<option value="${op}">${op}</option>`).join('');
+      const fStyle     = 'padding:6px 10px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);';
+      malUbHtml = `<div class="card">
+        <div class="label-strong" style="color:var(--warn);margin-bottom:10px;">
+          &#9888; Mal ubicados (${_malUbicados.length}) — ubicacion SAP &#8800; encontrado por operario
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+          <select id="dash-filter-op" style="${fStyle}">
+            <option value="">Todos los operarios</option>${opOptions}
+          </select>
+          <select id="dash-filter-cat" style="${fStyle}">
+            <option value="">Todas las categorias</option>
+            <option value="traslado_individual">Individual</option>
+            <option value="traslado_masivo">Masivo</option>
+            <option value="regularizacion">Regularizacion</option>
+          </select>
+          <input type="text" id="dash-filter-lote" placeholder="Buscar lote…" style="${fStyle}width:130px;">
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="kpi-table">
+            <thead><tr>
+              <th>Operario</th><th>Lote SAP</th><th>Descripcion</th>
+              <th>En SAP</th><th>Encontrado en</th><th>Destino</th><th>Enviado a SAP</th>
+            </tr></thead>
+            <tbody id="dash-malub-tbody"></tbody>
+          </table>
+        </div>
+      </div>`;
+    }
+
+    // ── Construir HTML ────────────────────────────────────────────────────────
     let html = '';
-    html += '<div class="kpi-grid">';
+
+    // KPI grid — 9 cards, 3 por fila en desktop
+    html += '<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">';
     html += `<div class="kpi-card"><div class="label-strong">Turnos</div><div class="big-value">${turnosCount}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Movs totales</div><div class="big-value">${totMovs}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Ejecutables P331</div><div class="big-value" style="color:var(--accent);">${totEjec}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Mal ubicados</div><div class="big-value" style="color:var(--warn);">${totDiscr}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Sin estante (huerf)</div><div class="big-value" style="color:var(--error);">${totHuerf}</div></div>`;
+    html += `<div class="kpi-card"><div class="label-strong">Enviados a SAP &#10003;</div><div class="big-value" style="color:var(--accent);">${totEnviados}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Tiempo total</div><div class="big-value">${fmtSeg(totSeg)}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Prom seg/mov</div><div class="big-value">${segPorMov}s</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Prom movs/turno</div><div class="big-value">${movsPorTurno}</div></div>`;
     html += '</div>';
 
+    // Aviso sesiones sin sincronizar
     if (pendientesLocal.length > 0) {
       const noEnGH = pendientesLocal.filter((it) => !auditorias.some((a) => a.id === (it.json && it.json.id))).length;
       if (noEnGH > 0) {
-        html += `<div class="card" style="border-color:var(--warn);"><div class="label-strong" style="color:var(--warn);">⚠ ${noEnGH} sesion(es) sin sincronizar</div><div style="font-size:13px;">Estan incluidas en los conteos arriba. Sincroniza para que queden en el historial de GitHub.</div></div>`;
+        html += `<div class="card" style="border-color:var(--warn);"><div class="label-strong" style="color:var(--warn);">&#9888; ${noEnGH} sesion(es) sin sincronizar</div><div style="font-size:13px;">Estan incluidas en los conteos arriba. Sincroniza para que queden en el historial de GitHub.</div></div>`;
       }
     }
 
-    html += '<div class="card"><div class="label-strong">Por modalidad</div>';
-    html += `<table class="kpi-table"><tr><th>Modo</th><th class="num">Movs</th></tr>
-      <tr><td>Individual</td><td class="num">${porAccion.traslado_individual}</td></tr>
-      <tr><td>Masivo</td><td class="num">${porAccion.traslado_masivo}</td></tr>
-      <tr><td>Regularizacion</td><td class="num">${porAccion.regularizacion}</td></tr>
-    </table></div>`;
+    // Graficos: ultimos 7 dias + por modalidad
+    html += `<div style="display:grid;gap:12px;grid-template-columns:1fr 1fr;margin-bottom:14px;">
+      <div class="card"><div class="label-strong" style="margin-bottom:10px;">Ultimos 7 dias</div>${barChartHtml}</div>
+      <div class="card"><div class="label-strong" style="margin-bottom:10px;">Por modalidad</div>${modoHtml}</div>
+    </div>`;
 
+    // Por operario
     const ops = Object.keys(porOperario).sort();
     if (ops.length > 0) {
       html += '<div class="card"><div class="label-strong">Por operario</div>';
       html += `<table class="kpi-table"><tr><th>Operario</th><th class="num">Turnos</th><th class="num">Movs</th><th class="num">Tiempo</th><th class="num">s/mov</th></tr>`;
       ops.forEach((op) => {
-        const d = porOperario[op];
+        const d   = porOperario[op];
         const spm = d.movs > 0 ? Math.round(d.seg / d.movs) : 0;
         html += `<tr><td>${op}</td><td class="num">${d.turnos}</td><td class="num">${d.movs}</td><td class="num">${fmtSeg(d.seg)}</td><td class="num">${spm}s</td></tr>`;
       });
       html += `</table></div>`;
     }
 
-    if (malUbicados.length > 0) {
-      html += `<div class="card">
-        <div class="label-strong" style="color:var(--warn);margin-bottom:10px;">
-          ⚠ Mal ubicados (${malUbicados.length}) — ubicacion SAP ≠ encontrado por operario
-        </div>
-        <table class="kpi-table">
-          <tr>
-            <th>Operario</th>
-            <th>Lote</th>
-            <th>Descripcion</th>
-            <th>En SAP</th>
-            <th>Encontrado en</th>
-            <th>Destino</th>
-          </tr>`;
-      malUbicados.forEach((m) => {
-        const desc = (m.descripcion || '').length > 28
-          ? (m.descripcion || '').slice(0, 26) + '…'
-          : (m.descripcion || '—');
-        html += `<tr>
-          <td>${m.operario}</td>
-          <td>${m.lote}</td>
-          <td title="${m.descripcion || ''}">${desc}</td>
-          <td style="color:var(--warn);">${m.bin_sap}</td>
-          <td style="color:var(--accent);">${m.bin_real}</td>
-          <td>${m.bin_destino || '—'}</td>
-        </tr>`;
-      });
-      html += `</table></div>`;
-    }
+    // Historial SAP + Mal ubicados
+    html += historialHtml;
+    html += malUbHtml;
 
     cont.innerHTML = html;
+
+    // Activar filtros de mal ubicados
+    if (_malUbicados.length > 0) {
+      filtrarMalUbicados();
+      ['dash-filter-op', 'dash-filter-cat', 'dash-filter-lote'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) { el.addEventListener('input', filtrarMalUbicados); el.addEventListener('change', filtrarMalUbicados); }
+      });
+    }
   }
 
   async function clearDashboardCache() {
@@ -800,7 +982,7 @@
     // Borra todas las entradas 'cache:*' del store config
     const all = await WMS.dbGetAll(WMS.STORES.config);
     for (const entry of all) {
-      if (entry.key && entry.key.startsWith('cache:')) {
+      if (entry.key && (entry.key.startsWith('cache:') || entry.key.startsWith('proc:'))) {
         await WMS.dbDelete(WMS.STORES.config, entry.key);
       }
     }
