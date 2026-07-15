@@ -1,0 +1,172 @@
+{
+  "schema": "auditoria_v1",
+  "id": "8032bc9a-82f5-48a2-8106-2ee032d45c86",
+  "operario": "pepe",
+  "fecha": "2026-07-15",
+  "hora_inicio": "15:18:42",
+  "hora_fin": "16:01:00",
+  "dispositivo": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36",
+  "kpis": {
+    "duracion_seg": 2538,
+    "duracion_min": 42,
+    "total_movimientos": 6,
+    "total_discrepancias": 6,
+    "total_huerfanos": 0,
+    "total_ejecutables": 6,
+    "por_accion": {
+      "traslado_individual": 0,
+      "traslado_masivo": 0,
+      "regularizacion": 6
+    },
+    "seg_por_movimiento": 423
+  },
+  "huerfanos": [],
+  "discrepancias": [
+    {
+      "lote": "18113",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-09-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-07-15T16:00:57",
+      "batch_id": "ilu4vp"
+    },
+    {
+      "lote": "23869",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-09-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-07-15T16:00:57",
+      "batch_id": "ilu4vp"
+    },
+    {
+      "lote": "23869",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-09-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-07-15T16:00:57",
+      "batch_id": "ilu4vp"
+    },
+    {
+      "lote": "23772",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-09-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-07-15T16:00:57",
+      "batch_id": "ilu4vp"
+    },
+    {
+      "lote": "23772",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-09-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-07-15T16:00:57",
+      "batch_id": "ilu4vp"
+    },
+    {
+      "lote": "13674",
+      "bin_sap": "A001-04A-06-02",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-09-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-07-15T16:00:57",
+      "batch_id": "ilu4vp"
+    }
+  ],
+  "movimientos": [
+    {
+      "lote": "18113",
+      "producto": "1000019538006",
+      "descripcion": "TELA PANT DRIL DW0004, MARRON",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 116200,
+      "unidad": "M",
+      "timestamp": "2026-07-15T16:00:57",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "ilu4vp"
+    },
+    {
+      "lote": "23869",
+      "producto": "1000019538012",
+      "descripcion": "TELA PANT DRIL DW0004, COCOA",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 67100,
+      "unidad": "M",
+      "timestamp": "2026-07-15T16:00:57",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "ilu4vp"
+    },
+    {
+      "lote": "23869",
+      "producto": "1000019538012",
+      "descripcion": "TELA PANT DRIL DW0004, COCOA",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 67100,
+      "unidad": "M",
+      "timestamp": "2026-07-15T16:00:57",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "ilu4vp"
+    },
+    {
+      "lote": "23772",
+      "producto": "1000019538016",
+      "descripcion": "TELA PANT DRIL DW0004, BEIGE/HABANO",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 59,
+      "unidad": "M",
+      "timestamp": "2026-07-15T16:00:57",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "ilu4vp"
+    },
+    {
+      "lote": "23772",
+      "producto": "1000019538016",
+      "descripcion": "TELA PANT DRIL DW0004, BEIGE/HABANO",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 59,
+      "unidad": "M",
+      "timestamp": "2026-07-15T16:00:57",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "ilu4vp"
+    },
+    {
+      "lote": "13674",
+      "producto": "1000019538006",
+      "descripcion": "TELA PANT DRIL DW0004, MARRON",
+      "bin_sap": "A001-04A-06-02",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 88800,
+      "unidad": "M",
+      "timestamp": "2026-07-15T16:00:57",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "ilu4vp"
+    }
+  ]
+}
