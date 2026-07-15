@@ -1,0 +1,55 @@
+{
+  "schema": "ejecutable_v1",
+  "id": "8f140390-493e-4cca-be2f-e170599b25f4",
+  "operario": "jose",
+  "fecha": "2026-07-14",
+  "hora_inicio": "19:06:09",
+  "hora_fin": "19:08:47",
+  "total": 4,
+  "movimientos": [
+    {
+      "accion": "traslado_individual",
+      "lote": "18113",
+      "producto": "1000019538006",
+      "bin_origen": "CORTE",
+      "bin_destino": "A001-06-08-02",
+      "cantidad": 116200,
+      "unidad": "M",
+      "batch_id": null,
+      "timestamp": "2026-07-14T19:07:20"
+    },
+    {
+      "accion": "traslado_individual",
+      "lote": "18113",
+      "producto": "1000019538006",
+      "bin_origen": "CORTE",
+      "bin_destino": "A001-06-08-02",
+      "cantidad": 116200,
+      "unidad": "M",
+      "batch_id": null,
+      "timestamp": "2026-07-14T19:07:20"
+    },
+    {
+      "accion": "traslado_individual",
+      "lote": "13674",
+      "producto": "1000019538006",
+      "bin_origen": "A001-04A-06-02",
+      "bin_destino": "A001-06-08-02",
+      "cantidad": 88800,
+      "unidad": "M",
+      "batch_id": null,
+      "timestamp": "2026-07-14T19:08:13"
+    },
+    {
+      "accion": "traslado_individual",
+      "lote": "23869",
+      "producto": "1000019538012",
+      "bin_origen": "CORTE",
+      "bin_destino": "A001-06-08-02",
+      "cantidad": 67100,
+      "unidad": "M",
+      "batch_id": null,
+      "timestamp": "2026-07-14T19:08:42"
+    }
+  ]
+}
