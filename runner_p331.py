@@ -27,10 +27,10 @@ def run_all(log_callback=None):
     pendientes = gh.listar_pendientes()
     if not pendientes:
         log("Sin movimientos pendientes en GitHub.")
-        return {"procesados": 0, "con_discrepancias": 0, "errores": 0}
+        return {"procesados": 0, "con_discrepancias": 0, "errores": 0, "total_llenados": 0}
 
     log(f"{len(pendientes)} archivo(s) encontrado(s) en pendientes/.")
-    procesados = con_discrepancias = errores = 0
+    procesados = con_discrepancias = errores = total_llenados = 0
 
     for item in pendientes:
         nombre  = item["name"]
@@ -49,7 +49,7 @@ def run_all(log_callback=None):
                 tmp_path = tmp.name
 
             try:
-                resultado = procesar_pendiente(tmp_path)
+                resultado = procesar_pendiente(tmp_path) or {}
             finally:
                 try:
                     os.unlink(tmp_path)
@@ -58,11 +58,12 @@ def run_all(log_callback=None):
 
             n_ok  = len(resultado.get("llenados", []))
             n_err = len(resultado.get("discrepancias", []))
+            total_llenados += n_ok
 
             if n_err == 0:
                 carpeta = "procesados"
                 procesados += 1
-                log(f"  OK — {n_ok} fila(s) llenadas. Archivado en procesados/.")
+                log(f"  OK — {n_ok} rollo(s) registrado(s). Archivado en procesados/.")
             else:
                 carpeta = "discrepancias"
                 con_discrepancias += 1
@@ -75,5 +76,5 @@ def run_all(log_callback=None):
             log(f"  ERROR — {e}")
             logging.exception(f"Error procesando {nombre}")
 
-    log(f"Fin: {procesados} OK · {con_discrepancias} con discrepancias · {errores} errores.")
-    return {"procesados": procesados, "con_discrepancias": con_discrepancias, "errores": errores}
+    log(f"Fin: {total_llenados} rollo(s) · {con_discrepancias} archivo(s) con discrepancias · {errores} errores.")
+    return {"procesados": procesados, "con_discrepancias": con_discrepancias, "errores": errores, "total_llenados": total_llenados}

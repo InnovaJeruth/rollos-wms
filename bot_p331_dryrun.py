@@ -89,6 +89,80 @@ def _esperar_elemento(session, element_id, timeout=15.0, interval=0.3):
     )
 
 
+def _existe(session, element_id):
+    try:
+        session.findById(element_id)
+        return True
+    except Exception:
+        return False
+
+
+def _cerrar_popup_si_existe(session):
+    """
+    Si SAP abre un popup modal (wnd[1]) despues de pressEnter en la grilla,
+    lo cierra y devuelve el mensaje que contenia (para loguearlo).
+    Retorna None si no habia popup.
+    """
+    if not _existe(session, "wnd[1]"):
+        return None
+
+    # Intentar leer el texto del popup para loguear
+    mensaje = ""
+    for id_txt in ("wnd[1]/usr/txtMESSTXT1", "wnd[1]/usr/txtV-MESSAGE",
+                   "wnd[1]/usr/lblMESSAGE", "wnd[1]/usr/lbl[1,2]"):
+        try:
+            mensaje = str(session.findById(id_txt).text).strip()
+            if mensaje:
+                break
+        except Exception:
+            pass
+
+    titulo = ""
+    try:
+        titulo = str(session.findById("wnd[1]").text).strip()
+    except Exception:
+        pass
+
+    # Cerrar: primero btn[0] (Enter/OK), luego sendVKey(0), luego sendVKey(13)
+    cerrado = False
+    for metodo in (
+        lambda: session.findById("wnd[1]/tbar[0]/btn[0]").press(),
+        lambda: session.findById("wnd[1]").sendVKey(0),
+        lambda: session.findById("wnd[1]").sendVKey(13),
+    ):
+        try:
+            metodo()
+            cerrado = True
+            break
+        except Exception:
+            pass
+
+    etiqueta = f'"{titulo}"' if titulo else "(sin titulo)"
+    texto = f': "{mensaje}"' if mensaje else ""
+    print(f"  [POPUP] {etiqueta}{texto} — {'cerrado OK' if cerrado else 'NO SE PUDO CERRAR'}")
+    return mensaje or titulo or "(popup sin texto)"
+
+
+def _formatear_cantidad_sap(v) -> str:
+    """
+    Formatea la cantidad para el campo VSOLA de SAP.
+    SAP EWM en locale ES/DE usa punto como separador de miles y coma como decimal.
+    Ej: 88800 -> "88.800"  |  88800.5 -> "88.800,500"
+    """
+    if v is None or v == "":
+        return ""
+    try:
+        f = float(str(v).replace(",", "."))
+        if f == int(f):
+            # Entero: separador de miles con punto (88800 -> "88.800")
+            return f"{int(f):,}".replace(",", ".")
+        # Con decimales: miles con punto, decimal con coma
+        partes = f"{f:,.3f}".split(".")
+        return partes[0].replace(",", ".") + "," + partes[1]
+    except (ValueError, TypeError):
+        return str(v)
+
+
 # =========================================================================
 # Normalizacion del JSON de pendientes (soporta ambos schemas encontrados
 # en el repo: el viejo -pre-split- con bin_sap/bin_real, y ejecutable_v1
@@ -113,11 +187,19 @@ def cargar_movimientos(ruta_json, solo_batch_id=None):
     with open(ruta_json, "r", encoding="utf-8") as f:
         data = json.load(f)
     movs = [normalizar_movimiento(m) for m in data.get("movimientos", [])]
-    # Los huerfanos no tienen bin_origen valido en SAP -> P331 no puede ejecutarlos
     movs = [m for m in movs if not m["huerfano"] and m["bin_origen"] and m["bin_destino"]]
     if solo_batch_id:
         movs = [m for m in movs if m["batch_id"] == solo_batch_id]
-    return movs
+    # Eliminar duplicados exactos (mismo lote + bin_origen + bin_destino)
+    seen, deduped = set(), []
+    for m in movs:
+        key = (m["lote"].upper(), m["bin_origen"], m["bin_destino"])
+        if key not in seen:
+            seen.add(key)
+            deduped.append(m)
+    if len(deduped) < len(movs):
+        print(f"[INFO] {len(movs) - len(deduped)} movimiento(s) duplicado(s) eliminado(s).")
+    return deduped
 
 
 # =========================================================================
@@ -151,8 +233,11 @@ def buscar_lotes_multiple(session, lotes):
     _esperar_elemento(session, BTN_TOGGLE_BUSQUEDA).press()
     _esperar_elemento(session, BTN_MULTI_VALOR_LOTE).press()
 
-    # Pegar la lista de lotes (uno por linea, como en el macro grabado)
-    _set_clipboard("\r\n".join(lotes))
+    # Pegar la lista de lotes (uno por linea, como en el macro grabado).
+    # SAP almacena CHARG con ceros a la izquierda (10 chars); los lotes numericos
+    # llegan sin ceros desde la PWA (normLote los strip) — se vuelven a agregar aqui.
+    lotes_sap = [l.zfill(10) if l.isdigit() else l for l in lotes]
+    _set_clipboard("\r\n".join(lotes_sap))
     _esperar_elemento(session, "wnd[1]/tbar[0]/btn[24]").press()  # Upload del portapapeles
     session.findById("wnd[1]/tbar[0]/btn[8]").press()             # Tomar (F8)
 
@@ -261,6 +346,17 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
 
     imprimir_diagnostico_columnas(grid)
 
+    # Intentar llenar la columna PROCTY completa con P331 de una sola vez.
+    # Algunos grids SAP soportan fillColumn; si no, se llenara fila a fila abajo.
+    _col_proc_prefilled = False
+    try:
+        grid.selectedRows = f"0,{total_filas - 1}" if total_filas > 1 else "0"
+        grid.fillColumn(COL_TIPO_PROC, PROCESO_P331)
+        _col_proc_prefilled = True
+        print(f"[INFO] Columna {COL_TIPO_PROC} (P331) llenada en bloque.")
+    except Exception:
+        print(f"[INFO] fillColumn no soportado; {COL_TIPO_PROC} se llenara por fila.")
+
     llenados, discrepancias = [], []
     lotes_identificados = set()
 
@@ -269,7 +365,9 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
         # Lectura directa por nombre tecnico confirmado (CHARG / VLPLA).
         # 2 lecturas por fila en vez de 49 — ~12x mas rapido que el scan completo.
         try:
-            lote_de_fila = grid.GetCellValue(fila, COL_LOTE).strip().upper()
+            lote_raw     = grid.GetCellValue(fila, COL_LOTE).strip().upper()
+            # SAP devuelve CHARG con ceros ("0000018113"); normalizamos igual que la PWA
+            lote_de_fila = lote_raw.lstrip("0") or lote_raw
             bin_de_fila  = grid.GetCellValue(fila, COL_BIN_ORIGEN).strip().upper()
         except Exception as e:
             print(f"  [AVISO] Fila {fila}: no se pudo leer CHARG/VLPLA ({e}). Se ignora.")
@@ -313,17 +411,15 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
             except Exception:
                 cantidad = ""
 
-        if cantidad:
-            grid.modifyCell(fila, COL_CANTIDAD, cantidad)
-        grid.modifyCell(fila, COL_TIPO_PROC, PROCESO_P331)
+        cantidad_sap = _formatear_cantidad_sap(cantidad)
+        if cantidad_sap:
+            grid.modifyCell(fila, COL_CANTIDAD, cantidad_sap)
+        if not _col_proc_prefilled:
+            grid.modifyCell(fila, COL_TIPO_PROC, PROCESO_P331)
         grid.modifyCell(fila, COL_BIN_DESTINO, mov["bin_destino"])
-        grid.pressEnter()
-
-        # Cerrar popup de validacion si SAP abre alguno (no confirma la tarea).
-        try:
-            session.findById("wnd[1]/tbar[0]/btn[0]").press()
-        except Exception:
-            pass
+        # NO pressEnter() por fila — evita el popup de validacion por cada registro.
+        # SAP acepta modifyCell sin confirmacion inmediata; la validacion ocurre
+        # cuando el usuario presiona Crear+Grabar al final.
 
         origen_cantidad = "JSON" if mov["cantidad"] else "SAP(AVAIL_QUAN)"
         aviso_cantidad = "" if cantidad else "  [!] Cantidad no obtenida — completar a mano."
@@ -334,6 +430,11 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
                          "origen_cantidad": origen_cantidad})
 
     t_matching_y_escritura = time.perf_counter() - t1
+
+    # Un solo Enter al final para que SAP valide todas las filas de una vez
+    # (un popup unico, no uno por fila).
+    grid.pressEnter()
+    _cerrar_popup_si_existe(session)
 
     # Lotes que esperabamos pero SAP nunca devolvio en ninguna fila
     for lote in set(lotes) - lotes_identificados:

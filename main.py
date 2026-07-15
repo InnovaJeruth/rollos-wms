@@ -115,6 +115,17 @@ class WMSApp:
         )
         self.btn_reg.pack(fill="x", padx=28)
 
+        # Boton actualizar conteo
+        self.btn_refresh = tk.Button(
+            self.root,
+            text="↻  Actualizar",
+            font=("Segoe UI", 10),
+            bg=BG2, fg=MUTED, activebackground=SEP, activeforeground=WHITE,
+            relief="flat", bd=0, pady=6, cursor="hand2",
+            command=self._on_refresh,
+        )
+        self.btn_refresh.pack(fill="x", padx=28, pady=(6, 0))
+
         # Canvas con rollos animados (oculto hasta que empieza una tarea)
         self.canvas = tk.Canvas(self.root, height=56, bg=BG, highlightthickness=0)
         self.canvas.pack(fill="x", padx=28, pady=(18, 0))
@@ -180,6 +191,8 @@ class WMSApp:
                             cursor="arrow" if busy else "hand2")
         self.btn_reg.config(state=state,
                             cursor="arrow" if busy else "hand2")
+        self.btn_refresh.config(state=state,
+                                cursor="arrow" if busy else "hand2")
         if busy:
             self._anim_x = -90
             self._tick_anim()
@@ -228,6 +241,13 @@ class WMSApp:
             logging.exception("Error al descargar/publicar inventario")
             self._queue.put(("err", "Ocurrio un error. Avisa al encargado."))
 
+    def _on_refresh(self):
+        self.btn_refresh.config(text="↻  Verificando...", state="disabled", cursor="arrow")
+        self.root.after(100, self._do_refresh)
+
+    def _do_refresh(self):
+        self._refresh_pendientes()
+
     def _on_registrar(self):
         if self._pendientes == 0:
             return
@@ -242,17 +262,17 @@ class WMSApp:
             resultado = runner_p331.run_all(
                 log_callback=lambda m: logging.info(m)
             )
-            p = resultado["procesados"]
             d = resultado["con_discrepancias"]
             e = resultado["errores"]
+            r = resultado.get("total_llenados", resultado["procesados"])
             if e > 0:
                 self._queue.put(("err", "Ocurrio un error. Avisa al encargado."))
             elif d > 0:
                 self._queue.put(("warn",
-                    f"✓ {p} registrado(s).  {d} con diferencias — revisar SAP."))
+                    f"✓ {r} rollo(s) registrado(s).  {d} archivo(s) con diferencias — revisar SAP."))
             else:
                 self._queue.put(("ok",
-                    f"✓ {p} movimiento(s) registrado(s) correctamente."))
+                    f"✓ {r} rollo(s) registrado(s) correctamente."))
         except Exception as e:
             logging.exception("Error al registrar movimientos")
             self._queue.put(("err", "Ocurrio un error. Avisa al encargado."))
@@ -265,14 +285,37 @@ class WMSApp:
     def _fetch_count(self):
         try:
             archivos = gh.listar_pendientes()
-            self._queue.put(("count", len(archivos)))
-            logging.info(f"Pendientes en GitHub: {len(archivos)}")
+            total_rollos = 0
+            for f in archivos:
+                try:
+                    data = gh.descargar_json(f["path"])
+                    movs = data.get("movimientos", [])
+                    seen = set()
+                    for m in movs:
+                        if m.get("huerfano"):
+                            continue
+                        if (m.get("accion") or "") == "noop":
+                            continue
+                        lote = (m.get("lote") or "").strip().upper()
+                        bin_origen = (m.get("bin_origen") or m.get("bin_real") or m.get("bin_sap") or "").strip()
+                        bin_destino = (m.get("bin_destino") or "").strip()
+                        if not lote or not bin_destino:
+                            continue
+                        key = (lote, bin_origen, bin_destino)
+                        if key not in seen:
+                            seen.add(key)
+                            total_rollos += 1
+                except Exception:
+                    pass
+            self._queue.put(("count", total_rollos))
+            logging.info(f"Rollos ejecutables P331 en GitHub: {total_rollos} (en {len(archivos)} archivo(s))")
         except Exception as e:
             logging.warning(f"No se pudo consultar GitHub: {e}")
             self._queue.put(("count", -1))
 
     def _apply_count(self, count: int):
         self._pendientes = count
+        self.btn_refresh.config(text="↻  Actualizar", state="normal", cursor="hand2")
         if count < 0:
             # Sin conexion a GitHub
             self.btn_reg.config(
@@ -282,17 +325,17 @@ class WMSApp:
             self.lbl_footer.config(text="Sin conexion a GitHub")
         elif count == 0:
             self.btn_reg.config(
-                text="▶   Registrar movimientos  (0)",
+                text="▶   Registrar movimientos  (0 rollos)",
                 bg=DIS_BG, fg=DIS_FG, state="disabled", cursor="arrow",
             )
-            self.lbl_footer.config(text="SAP activo · Sin movimientos pendientes")
+            self.lbl_footer.config(text="SAP activo · Sin rollos ejecutables P331")
         else:
             self.btn_reg.config(
-                text=f"▶   Registrar movimientos  ({count})",
+                text=f"▶   Registrar movimientos  ({count} rollo{'s' if count != 1 else ''})",
                 bg=BLUE, fg=WHITE, state="normal", cursor="hand2",
             )
             self.lbl_footer.config(
-                text=f"SAP activo · {count} movimiento(s) pendiente(s) en GitHub"
+                text=f"SAP activo · {count} rollo{'s' if count != 1 else ''} ejecutable{'s' if count != 1 else ''} P331 en GitHub"
             )
 
     # ── Cola thread-safe ─────────────────────────────────────────────────────

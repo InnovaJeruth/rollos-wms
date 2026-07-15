@@ -668,11 +668,11 @@
     let totMovs = 0, totEjec = 0, totHuerf = 0, totDiscr = 0, totSeg = 0;
     const porAccion = { traslado_individual: 0, traslado_masivo: 0, regularizacion: 0 };
     const porOperario = {};
+    const malUbicados = [];
     let turnosCount = auditorias.length;
 
     function acumular(sessionLike, kpisCached) {
       const movs = sessionLike.movimientos || [];
-      // Si la sesion ya viene con kpis, usa esos. Sino calcula.
       const k = kpisCached || WMS.calcularKPIs(sessionLike);
       totMovs += k.total_movimientos || movs.length;
       totEjec += k.total_ejecutables || 0;
@@ -688,6 +688,9 @@
       porOperario[op].turnos += 1;
       porOperario[op].movs += movs.length;
       porOperario[op].seg += k.duracion_seg || 0;
+      // Recopilar mal ubicados (bin_sap != bin_real)
+      movs.filter((m) => m.discrepancia && m.bin_sap && m.bin_real && m.bin_sap !== m.bin_real)
+          .forEach((m) => malUbicados.push({ ...m, operario: op }));
     }
 
     // Auditorias de GitHub: ya traen .kpis precalculados
@@ -743,6 +746,37 @@
       });
       html += `</table></div>`;
     }
+
+    if (malUbicados.length > 0) {
+      html += `<div class="card">
+        <div class="label-strong" style="color:var(--warn);margin-bottom:10px;">
+          ⚠ Mal ubicados (${malUbicados.length}) — ubicacion SAP ≠ encontrado por operario
+        </div>
+        <table class="kpi-table">
+          <tr>
+            <th>Operario</th>
+            <th>Lote</th>
+            <th>Descripcion</th>
+            <th>En SAP</th>
+            <th>Encontrado en</th>
+            <th>Destino</th>
+          </tr>`;
+      malUbicados.forEach((m) => {
+        const desc = (m.descripcion || '').length > 28
+          ? (m.descripcion || '').slice(0, 26) + '…'
+          : (m.descripcion || '—');
+        html += `<tr>
+          <td>${m.operario}</td>
+          <td>${m.lote}</td>
+          <td title="${m.descripcion || ''}">${desc}</td>
+          <td style="color:var(--warn);">${m.bin_sap}</td>
+          <td style="color:var(--accent);">${m.bin_real}</td>
+          <td>${m.bin_destino || '—'}</td>
+        </tr>`;
+      });
+      html += `</table></div>`;
+    }
+
     cont.innerHTML = html;
   }
 

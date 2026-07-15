@@ -633,6 +633,13 @@
     body.is-handheld .mode-btn-title { font-size: 13px; margin-bottom: 0; }
     body.is-handheld .mode-btn-desc { font-size: 9px; }
 
+    /* --- screen-confirm-bin: ocultar info no esencial para que quepan los botones SI/NO --- */
+    body.is-handheld #conf-producto,
+    body.is-handheld #conf-descripcion,
+    body.is-handheld #conf-producto-label { display: none; }
+    body.is-handheld #screen-confirm-bin .yesno { flex: 1; align-items: stretch; }
+    body.is-handheld #screen-confirm-bin .yesno .btn { flex: 1; min-height: unset; font-size: 20px; font-weight: 700; }
+
     /* --- Grids y listas --- */
     body.is-handheld .summary-grid { gap: 3px; margin-bottom: 3px; }
 
@@ -852,7 +859,7 @@
         <div class="card highlight">
           <div class="label-strong">Lote</div>
           <div class="big-value" id="conf-lote">-</div>
-          <div class="label-strong" style="margin-top:8px;">Producto</div>
+          <div class="label-strong" id="conf-producto-label" style="margin-top:8px;">Producto</div>
           <div id="conf-producto" style="font-size:16px;">-</div>
           <div id="conf-descripcion" style="font-size:14px; color:var(--text-dim);">-</div>
         </div>
