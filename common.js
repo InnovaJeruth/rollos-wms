@@ -347,6 +347,33 @@
     return await resp.json();
   }
 
+  async function deleteGitHubFile(cfg, path, sha, message) {
+    if (!cfg.repo || !cfg.token) throw new Error('GitHub no configurado');
+    if (!navigator.onLine) throw new Error('Sin conexion');
+    if (!sha) throw new Error('Se requiere sha para eliminar archivo');
+    const url = `https://api.github.com/repos/${cfg.repo}/contents/${path}`;
+    const body = {
+      message: message || ('del: ' + path),
+      sha,
+      branch: cfg.branch || 'main'
+    };
+    const resp = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': 'token ' + cfg.token,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok) {
+      let detail = '';
+      try { const j = await resp.json(); detail = j.message || ''; } catch (e) {}
+      throw new Error('GitHub DELETE ' + resp.status + (detail ? ': ' + detail : ''));
+    }
+    return true;
+  }
+
   async function uploadJSONToFolder(cfg, json, carpeta, prefijo) {
     const safeOp = (json.operario || 'sin_operario').replace(/[^a-zA-Z0-9_-]+/g, '_');
     const filename = `${prefijo}_${safeOp}_${json.id || Date.now()}.json`;
@@ -646,7 +673,7 @@
     // Excel
     normalizeHeader, pickColumn, parseExcel,
     // GitHub API
-    testGithubConnection, getGitHubFile, putGitHubFile, uploadJSONToFolder,
+    testGithubConnection, getGitHubFile, putGitHubFile, deleteGitHubFile, uploadJSONToFolder,
     listGitHubFolder, loadAuditoriaHistory,
     // Inventario
     unwrapInventory, pushInventoryToGitHub, pullInventoryFromGitHub, getGithubInventoryDate,

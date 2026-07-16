@@ -77,7 +77,7 @@ class ConflictDialog(tk.Toplevel):
 
     def __init__(self, parent, conflictos):
         super().__init__(parent)
-        self.title("Conflictos de destino — WMS")
+        self.title("Conflictos de destino — Almacen TEXCORP")
         self.configure(bg=BG)
         self.resizable(False, False)
         self.grab_set()          # modal
@@ -196,7 +196,7 @@ class ConflictDialog(tk.Toplevel):
 class WMSApp:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("WMS SAP Bot — TEXCORP")
+        self.root.title("Almacen TEXCORP — Bot SAP")
         self.root.configure(bg=BG)
         self.root.resizable(False, False)
         self.root.geometry("360x500")
@@ -219,7 +219,7 @@ class WMSApp:
 
     def _build_ui(self):
         # Encabezado
-        tk.Label(self.root, text="WMS SAP Bot",
+        tk.Label(self.root, text="Almacen TEXCORP",
                  font=("Segoe UI", 20, "bold"), bg=BG, fg=WHITE).pack(pady=(28, 2))
         tk.Label(self.root, text="Almacen TEXCORP S.A.C.",
                  font=("Segoe UI", 11), bg=BG, fg=MUTED).pack()

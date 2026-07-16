@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0f1117">
-  <title>WMS Rollos — Administracion</title>
+  <title>Almacen TEXCORP — Administracion</title>
   <link rel="manifest" href="manifest.json">
   <style>
     :root {
@@ -197,7 +197,7 @@
   <div class="app">
     <div class="topbar">
       <div>
-        <div class="title">WMS Rollos — Administracion</div>
+        <div class="title">Almacen TEXCORP — Administracion</div>
         <div class="sub" id="top-sub">TEXCORP</div>
       </div>
       <div class="topbar-right">
@@ -225,7 +225,7 @@
     <!-- CONFIG GITHUB (primer uso o editar) -->
     <section class="screen" id="screen-config">
       <button class="back-btn" id="cfg-back" style="display:none;">← Menu principal</button>
-      <h1 id="cfg-h1">Configuracion GitHub</h1>
+      <h1 id="cfg-h1">Configuracion de la nube</h1>
       <p style="color:var(--text-dim);">Token con permisos <strong>Contents: Read and write</strong> en el repo.</p>
 
       <div class="card">
@@ -270,10 +270,10 @@
           <div class="menu-title">Dashboard</div>
           <div class="menu-desc">Indicadores y KPIs</div>
         </button>
-        <button class="menu-card" data-go="config">
+        <button class="menu-card" data-go="config" data-admin-only>
           <div class="menu-icon">⚙</div>
           <div class="menu-title">Configuracion</div>
-          <div class="menu-desc">GitHub, token, branch</div>
+          <div class="menu-desc">La nube, token, branch</div>
         </button>
       </div>
 
@@ -288,19 +288,19 @@
       <div class="card">
         <div class="label-strong">Estado local en este dispositivo</div>
         <div id="inv-local">Sin inventario cargado</div>
-        <div class="label-strong" style="margin-top:10px;">Estado en GitHub</div>
+        <div class="label-strong" style="margin-top:10px;">Estado en la nube</div>
         <div id="inv-github" style="font-size:14px; color:var(--text-dim);">-</div>
       </div>
 
       <label>Cargar inventario desde:</label>
       <div class="btn-row">
         <button class="btn secondary" id="btn-upload-local">📁 Excel local (.xlsx)</button>
-        <button class="btn secondary" id="btn-pull-github">⬇ Bajar de GitHub</button>
+        <button class="btn secondary" id="btn-pull-github">⬇ Bajar de la nube</button>
       </div>
       <input type="file" id="inp-excel" accept=".xlsx,.xls" style="display:none;">
 
-      <label style="margin-top:18px;">Publicar inventario local a GitHub:</label>
-      <button class="btn secondary" id="btn-push-github">↑ Republicar inventario</button>
+      <label style="margin-top:18px;">Publicar inventario local en la nube:</label>
+      <button class="btn secondary" id="btn-push-github">↑ Subir a la nube</button>
     </section>
 
     <!-- SESIONES -->
@@ -328,7 +328,7 @@
       <button class="back-btn" data-back="menu">← Menu principal</button>
       <h1>📊 Dashboard de indicadores</h1>
       <p style="font-size:13px; color:var(--text-dim);">
-        KPIs sobre <strong>todas las sesiones publicadas en GitHub</strong> (<code>auditoria/</code>) y ejecuciones SAP (<code>procesados/</code>).
+        KPIs sobre <strong>todas las sesiones publicadas en la nube</strong> y ejecuciones SAP.
         Los archivos se cachean localmente; al refrescar solo se descarga lo que cambio.
       </p>
       <div id="dashboard-status" style="font-size:13px; color:var(--text-dim); margin-bottom:10px;"></div>
@@ -338,7 +338,8 @@
       <div class="btn-row" style="margin-top:10px;">
         <button class="btn" id="btn-dash-refresh">🔄 Recalcular</button>
         <button class="btn secondary" id="btn-dash-export">⬇ Descargar CSV</button>
-        <button class="btn secondary" id="btn-dash-clearcache">Borrar cache local</button>
+        <button class="btn secondary" id="btn-dash-clearcache" data-admin-only>Borrar cache local</button>
+        <button class="btn danger" id="btn-reset-pendientes" data-admin-only style="display:none;">🗑 Reiniciar pendientes</button>
       </div>
     </section>
 
@@ -355,12 +356,20 @@
 
   const state = {
     config: { repo: '', branch: 'main', token: '' },
-    isLogged: false
+    isLogged: false,
+    role: ''  // 'admin' | 'jefe'
   };
 
   let _dashboardMovs = [];
   let _malUbicados = [];
   let _procesadosLoteMap = {};
+
+  // Cache de datos y filtros globales del dashboard
+  let _allAuditorias  = null;
+  let _allProcesados  = null;
+  let _filterDateFrom = '';
+  let _filterDateTo   = '';
+  let _filterOpGlobal = '';
 
   // ===========================================================
   // Navegacion + helpers UI
@@ -396,17 +405,38 @@
     const p = document.getElementById('login-pass').value;
     const expectU = (window.PROJECT_CONFIG && window.PROJECT_CONFIG.admin_user) || 'sa';
     const expectP = (window.PROJECT_CONFIG && window.PROJECT_CONFIG.admin_pass) || 'sa';
-    if (u !== expectU || p !== expectP) { flash('Credenciales incorrectas', 'err'); return; }
+    const jefeU   = (window.PROJECT_CONFIG && window.PROJECT_CONFIG.jefe_user)  || 'jefe';
+    const jefeP   = (window.PROJECT_CONFIG && window.PROJECT_CONFIG.jefe_pass)  || 'jefe';
+    if (u === expectU && p === expectP) {
+      state.role = 'admin';
+    } else if (u === jefeU && p === jefeP) {
+      state.role = 'jefe';
+    } else {
+      flash('Credenciales incorrectas', 'err'); return;
+    }
     state.isLogged = true;
     sessionStorage.setItem('wms_admin_logged', '1');
+    sessionStorage.setItem('wms_admin_role', state.role);
     document.getElementById('login-pass').value = '';
     afterLogin();
   }
 
+  function applyRoleUI() {
+    const isAdmin = state.role === 'admin';
+    document.querySelectorAll('[data-admin-only]').forEach(el => {
+      el.style.display = isAdmin ? '' : 'none';
+    });
+  }
+
   async function afterLogin() {
+    applyRoleUI();
     state.config = await WMS.loadConfig();
     if (!state.config.repo || !state.config.token) {
-      // Primer uso: ir a config
+      if (state.role !== 'admin') {
+        // El jefe no puede configurar la nube
+        flash('La nube no esta configurada. Pide al administrador que la configure.', 'err');
+        state.isLogged = false; state.role = ''; return;
+      }
       document.getElementById('cfg-h1').textContent = 'Primera configuracion';
       document.getElementById('cfg-back').style.display = 'none';
       populateConfigForm();
@@ -418,10 +448,32 @@
 
   function logout() {
     state.isLogged = false;
+    state.role = '';
     sessionStorage.removeItem('wms_admin_logged');
     document.getElementById('login-user').value = '';
     document.getElementById('login-pass').value = '';
     show('screen-login');
+  }
+
+  async function reiniciarPendientes() {
+    if (!state.config.repo || !state.config.token) { flash('Configura la nube primero.', 'err'); return; }
+    if (!confirm('¿Reiniciar la cola de pendientes?\n\nEsto eliminara todos los archivos en pendientes/ de la nube. Las auditorias y los procesados SAP no se tocan.\n\nEsta accion no se puede deshacer.')) return;
+    if (!confirm('Segunda confirmacion: ¿confirmas que quieres borrar todos los pendientes de la nube?')) return;
+    flash('Borrando pendientes de la nube...', '');
+    try {
+      const files = await WMS.listGitHubFolder(state.config, 'pendientes');
+      if (!files || files.length === 0) { flash('No habia pendientes en la nube.', 'ok'); return; }
+      let borrados = 0;
+      for (const f of files) {
+        await WMS.deleteGitHubFile(state.config, f.path, f.sha, `reset: borrar pendiente ${f.name}`);
+        borrados++;
+      }
+      // Limpiar cache del dashboard para que refleje el cambio
+      _allAuditorias = null; _allProcesados = null;
+      flash(`✓ ${borrados} pendiente(s) eliminado(s) de la nube.`, 'ok');
+    } catch (e) {
+      flash('Error al reiniciar: ' + e.message, 'err');
+    }
   }
 
   // ===========================================================
@@ -528,12 +580,12 @@
       await refreshInventario();
       if (navigator.onLine && state.config.repo && state.config.token) {
         try {
-          flash('Publicando a GitHub...', '');
+          flash('Publicando en la nube...', '');
           const r = await WMS.pushInventoryToGitHub(state.config);
-          flash(`✓ Publicado a GitHub (${r.count} rollos, ${r.size_kb} KB)`, 'ok');
+          flash(`✓ Publicado en la nube (${r.count} rollos, ${r.size_kb} KB)`, 'ok');
           await refreshInventario();
         } catch (e) {
-          flash('Local OK pero falla GitHub: ' + e.message, 'err');
+          flash('Local OK pero falla la nube: ' + e.message, 'err');
         }
       }
     } catch (err) {
@@ -701,7 +753,7 @@
     const status = document.getElementById('dashboard-status');
 
     if (!state.config.repo || !state.config.token) {
-      cont.innerHTML = '<div class="empty-state" style="color:var(--warn);">Configura GitHub primero.</div>';
+      cont.innerHTML = '<div class="empty-state" style="color:var(--warn);">Configura la nube primero (menu Configuracion).</div>';
       status.textContent = '';
       return;
     }
@@ -711,33 +763,47 @@
       return;
     }
 
-    cont.innerHTML = '<div class="empty-state">Cargando datos desde GitHub...</div>';
-    status.textContent = '';
-
-    // ── Auditorias ────────────────────────────────────────────────────────────
-    let auditorias;
-    try {
-      auditorias = await WMS.loadAuditoriaHistory(state.config, (i, total, name) => {
-        status.textContent = `Auditoria ${i}/${total}: ${name}`;
-      });
-    } catch (e) {
-      cont.innerHTML = `<div class="empty-state" style="color:var(--error);">Error: ${e.message}</div>`;
+    // ── Datos: cargar de GitHub o usar cache en memoria ──────────────────────
+    if (!_allAuditorias) {
+      cont.innerHTML = '<div class="empty-state">Cargando datos de la nube...</div>';
       status.textContent = '';
-      return;
+      try {
+        _allAuditorias = await WMS.loadAuditoriaHistory(state.config, (i, total, name) => {
+          status.textContent = `Auditoria ${i}/${total}: ${name}`;
+        });
+      } catch (e) {
+        cont.innerHTML = `<div class="empty-state" style="color:var(--error);">Error: ${e.message}</div>`;
+        status.textContent = '';
+        return;
+      }
+      try {
+        _allProcesados = await loadProcesadosHistory(state.config, (i, total, name) => {
+          status.textContent = `SAP ${i}/${total}: ${name}`;
+        });
+      } catch(e) { _allProcesados = []; }
     }
 
-    // ── Procesados (resultados SAP por lote) ──────────────────────────────────
-    let procesadosList = [];
-    try {
-      procesadosList = await loadProcesadosHistory(state.config, (i, total, name) => {
-        status.textContent = `SAP ${i}/${total}: ${name}`;
-      });
-    } catch(e) { /* carpeta procesados/ puede no existir todavia */ }
+    // ── Aplicar filtros globales ───────────────────────────────────────────────
+    const auditorias = _allAuditorias.filter(a => {
+      if (_filterDateFrom && (a.fecha || '') < _filterDateFrom) return false;
+      if (_filterDateTo   && (a.fecha || '') > _filterDateTo)   return false;
+      if (_filterOpGlobal && a.operario !== _filterOpGlobal)    return false;
+      return true;
+    });
+    const procesadosList = _allProcesados || [];
+    const allOps = Array.from(new Set(_allAuditorias.map(a => a.operario).filter(Boolean))).sort();
 
-    status.textContent = `${auditorias.length} sesion(es) · ${procesadosList.length} archivo(s) SAP cargados`;
+    status.textContent = `${auditorias.length}/${_allAuditorias.length} sesion(es) · ${procesadosList.length} arch. SAP`;
 
+    if (!_allAuditorias.length) {
+      cont.innerHTML = '<div class="empty-state">Aun no hay sesiones en la nube. Cuando los operarios terminen turnos y sincronicen, apareceran aqui.</div>';
+      return;
+    }
     if (!auditorias.length) {
-      cont.innerHTML = '<div class="empty-state">Aun no hay sesiones publicadas en GitHub. Cuando los operarios terminen turnos y se sincronicen, apareceran aqui.</div>';
+      cont.innerHTML = '<div class="empty-state">Ninguna sesion coincide con los filtros activos.<br><button id="dash-gf-clr-empty" style="font-size:12px;padding:5px 12px;margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--text);">Limpiar filtros</button></div>';
+      document.getElementById('dash-gf-clr-empty')?.addEventListener('click', () => {
+        _filterDateFrom = ''; _filterDateTo = ''; _filterOpGlobal = ''; renderDashboard();
+      });
       return;
     }
 
@@ -763,6 +829,7 @@
     // ── Acumular KPIs ─────────────────────────────────────────────────────────
     const pendientesLocal = await WMS.dbGetAll(WMS.STORES.pendientes);
     let totMovs = 0, totEjec = 0, totHuerf = 0, totDiscr = 0, totSeg = 0;
+    let totMovsPutaway = 0, totDiscrPutaway = 0;
     const porAccion = { traslado_individual: 0, traslado_masivo: 0, regularizacion: 0 };
     const porOperario = {};
     _malUbicados = [];
@@ -791,6 +858,12 @@
             const lk = String(m.lote || '').replace(/^0+/, '') || m.lote;
             if (!seenLotes.has(lk)) { seenLotes.add(lk); _malUbicados.push({ ...m, operario: op }); }
           });
+      movs.forEach(m => {
+        if ((m.accion || '') !== 'regularizacion') {
+          totMovsPutaway++;
+          if (m.discrepancia && m.bin_sap && m.bin_real && m.bin_sap !== m.bin_real) totDiscrPutaway++;
+        }
+      });
     }
 
     _dashboardMovs = [];
@@ -921,8 +994,38 @@
       </div>`;
     }
 
+    // ── Semaforo exactitud ────────────────────────────────────────────────────
+    const tasaExact = totMovsPutaway > 0
+      ? (totMovsPutaway - totDiscrPutaway) / totMovsPutaway * 100
+      : 100;
+    const semColor = tasaExact >= 95 ? 'var(--accent)' : (tasaExact >= 85 ? 'var(--warn)' : 'var(--error)');
+    const semLabel = tasaExact >= 95 ? 'Operacion normal' : (tasaExact >= 85 ? 'Atencion recomendada' : 'Intervencion urgente');
+
     // ── Construir HTML ────────────────────────────────────────────────────────
     let html = '';
+
+    // Filtros globales
+    const fBase = 'padding:6px 10px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);';
+    const hasFilter = _filterDateFrom || _filterDateTo || _filterOpGlobal;
+    html += `<div class="card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;">
+      <span style="font-size:12px;color:var(--text-dim);flex-shrink:0;">Filtrar:</span>
+      <input type="date" id="dash-gf-from" value="${_filterDateFrom}" title="Desde" style="${fBase}">
+      <span style="font-size:12px;color:var(--text-dim);">—</span>
+      <input type="date" id="dash-gf-to" value="${_filterDateTo}" title="Hasta" style="${fBase}">
+      <select id="dash-gf-op" style="${fBase}">
+        <option value="">Todos los operarios</option>
+        ${allOps.map(op => `<option value="${op}"${_filterOpGlobal === op ? ' selected' : ''}>${op}</option>`).join('')}
+      </select>
+      ${hasFilter ? `<button id="dash-gf-clear" style="font-size:11px;padding:5px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--text);">&#10005; Limpiar</button>` : ''}
+    </div>`;
+
+    // Semaforo de exactitud
+    html += `<div class="card" style="text-align:center;padding:16px 12px;">
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:2px;">Exactitud de ubicacion <span title="Solo movimientos individual y masivo. La regularizacion se excluye porque su objetivo es detectar errores, no crearlos." style="cursor:help;opacity:0.6;">&#9432;</span></div>
+      <div style="font-size:52px;font-weight:700;color:${semColor};line-height:1.1;">${tasaExact.toFixed(1)}%</div>
+      <div style="font-size:12px;color:${semColor};margin-top:4px;font-weight:600;">${semLabel}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">${totMovsPutaway - totDiscrPutaway} de ${totMovsPutaway} movimientos correctos (excluye regularizacion)</div>
+    </div>`;
 
     // KPI grid — 9 cards, 3 por fila en desktop
     html += '<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">';
@@ -941,7 +1044,7 @@
     if (pendientesLocal.length > 0) {
       const noEnGH = pendientesLocal.filter((it) => !auditorias.some((a) => a.id === (it.json && it.json.id))).length;
       if (noEnGH > 0) {
-        html += `<div class="card" style="border-color:var(--warn);"><div class="label-strong" style="color:var(--warn);">&#9888; ${noEnGH} sesion(es) sin sincronizar</div><div style="font-size:13px;">Estan incluidas en los conteos arriba. Sincroniza para que queden en el historial de GitHub.</div></div>`;
+        html += `<div class="card" style="border-color:var(--warn);"><div class="label-strong" style="color:var(--warn);">&#9888; ${noEnGH} sesion(es) sin sincronizar</div><div style="font-size:13px;">Estan incluidas en los conteos arriba. Sincroniza para que queden en el historial de la nube.</div></div>`;
       }
     }
 
@@ -969,6 +1072,19 @@
     html += malUbHtml;
 
     cont.innerHTML = html;
+
+    // Activar filtros globales
+    ['dash-gf-from', 'dash-gf-to', 'dash-gf-op'].forEach(id => {
+      document.getElementById(id)?.addEventListener('change', () => {
+        _filterDateFrom = document.getElementById('dash-gf-from')?.value || '';
+        _filterDateTo   = document.getElementById('dash-gf-to')?.value   || '';
+        _filterOpGlobal = document.getElementById('dash-gf-op')?.value   || '';
+        renderDashboard();
+      });
+    });
+    document.getElementById('dash-gf-clear')?.addEventListener('click', () => {
+      _filterDateFrom = ''; _filterDateTo = ''; _filterOpGlobal = ''; renderDashboard();
+    });
 
     // Activar filtros de mal ubicados
     if (_malUbicados.length > 0) {
@@ -1084,9 +1200,10 @@
     document.getElementById('btn-sync-all').addEventListener('click', syncAllPending);
 
     // Dashboard
-    document.getElementById('btn-dash-refresh').addEventListener('click', renderDashboard);
+    document.getElementById('btn-dash-refresh').addEventListener('click', () => { _allAuditorias = null; _allProcesados = null; renderDashboard(); });
     document.getElementById('btn-dash-export').addEventListener('click', downloadMovimientosCSV);
     document.getElementById('btn-dash-clearcache').addEventListener('click', clearDashboardCache);
+    document.getElementById('btn-reset-pendientes').addEventListener('click', reiniciarPendientes);
   });
 
   // Service Worker

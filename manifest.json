@@ -1,7 +1,7 @@
 {
-  "name": "WMS Rollos TEXCORP",
-  "short_name": "WMS Rollos",
-  "description": "Sistema de gestion de movimientos de rollos para almacen TEXCORP",
+  "name": "Almacen TEXCORP",
+  "short_name": "TEXCORP",
+  "description": "Sistema de gestion de movimientos de rollos — Almacen TEXCORP S.A.C.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
