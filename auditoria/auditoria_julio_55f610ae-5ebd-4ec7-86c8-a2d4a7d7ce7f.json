@@ -1,0 +1,280 @@
+{
+  "schema": "auditoria_v1",
+  "id": "55f610ae-5ebd-4ec7-86c8-a2d4a7d7ce7f",
+  "operario": "julio",
+  "fecha": "2026-07-20",
+  "hora_inicio": "11:00:43",
+  "hora_fin": "11:12:41",
+  "dispositivo": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Mobile Safari/537.36",
+  "kpis": {
+    "duracion_seg": 718,
+    "duracion_min": 12,
+    "total_movimientos": 12,
+    "total_discrepancias": 12,
+    "total_huerfanos": 12,
+    "total_ejecutables": 0,
+    "por_accion": {
+      "traslado_individual": 0,
+      "traslado_masivo": 0,
+      "regularizacion": 12
+    },
+    "seg_por_movimiento": 60
+  },
+  "huerfanos": [
+    {
+      "lote": "A260604707",
+      "bin_real": "A003-07-09-03",
+      "timestamp": "2026-07-20T11:12:36",
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604713",
+      "bin_real": "A003-07-09-03",
+      "timestamp": "2026-07-20T11:12:36",
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604711",
+      "bin_real": "A003-07-09-03",
+      "timestamp": "2026-07-20T11:12:36",
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604608",
+      "bin_real": "A003-07-09-03",
+      "timestamp": "2026-07-20T11:12:36",
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604714",
+      "bin_real": "A003-07-09-03",
+      "timestamp": "2026-07-20T11:12:36",
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604706",
+      "bin_real": "A003-07-09-03",
+      "timestamp": "2026-07-20T11:12:36",
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604702",
+      "bin_real": "A003-07-09-03",
+      "timestamp": "2026-07-20T11:12:36",
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604708",
+      "bin_real": "A003-07-09-03",
+      "timestamp": "2026-07-20T11:12:36",
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604712",
+      "bin_real": "A003-07-09-03",
+      "timestamp": "2026-07-20T11:12:36",
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604717",
+      "bin_real": "A003-07-09-03",
+      "timestamp": "2026-07-20T11:12:36",
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604715",
+      "bin_real": "A003-07-09-03",
+      "timestamp": "2026-07-20T11:12:36",
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604704",
+      "bin_real": "A003-07-09-03",
+      "timestamp": "2026-07-20T11:12:36",
+      "batch_id": "eiuun8"
+    }
+  ],
+  "discrepancias": [],
+  "movimientos": [
+    {
+      "lote": "A260604707",
+      "producto": "",
+      "descripcion": "",
+      "bin_sap": "",
+      "bin_real": "A003-07-09-03",
+      "discrepancia": true,
+      "bin_destino": "A003-07-09-03",
+      "cantidad": "",
+      "unidad": "",
+      "timestamp": "2026-07-20T11:12:36",
+      "accion": "regularizacion",
+      "huerfano": true,
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604713",
+      "producto": "",
+      "descripcion": "",
+      "bin_sap": "",
+      "bin_real": "A003-07-09-03",
+      "discrepancia": true,
+      "bin_destino": "A003-07-09-03",
+      "cantidad": "",
+      "unidad": "",
+      "timestamp": "2026-07-20T11:12:36",
+      "accion": "regularizacion",
+      "huerfano": true,
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604711",
+      "producto": "",
+      "descripcion": "",
+      "bin_sap": "",
+      "bin_real": "A003-07-09-03",
+      "discrepancia": true,
+      "bin_destino": "A003-07-09-03",
+      "cantidad": "",
+      "unidad": "",
+      "timestamp": "2026-07-20T11:12:36",
+      "accion": "regularizacion",
+      "huerfano": true,
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604608",
+      "producto": "",
+      "descripcion": "",
+      "bin_sap": "",
+      "bin_real": "A003-07-09-03",
+      "discrepancia": true,
+      "bin_destino": "A003-07-09-03",
+      "cantidad": "",
+      "unidad": "",
+      "timestamp": "2026-07-20T11:12:36",
+      "accion": "regularizacion",
+      "huerfano": true,
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604714",
+      "producto": "",
+      "descripcion": "",
+      "bin_sap": "",
+      "bin_real": "A003-07-09-03",
+      "discrepancia": true,
+      "bin_destino": "A003-07-09-03",
+      "cantidad": "",
+      "unidad": "",
+      "timestamp": "2026-07-20T11:12:36",
+      "accion": "regularizacion",
+      "huerfano": true,
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604706",
+      "producto": "",
+      "descripcion": "",
+      "bin_sap": "",
+      "bin_real": "A003-07-09-03",
+      "discrepancia": true,
+      "bin_destino": "A003-07-09-03",
+      "cantidad": "",
+      "unidad": "",
+      "timestamp": "2026-07-20T11:12:36",
+      "accion": "regularizacion",
+      "huerfano": true,
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604702",
+      "producto": "",
+      "descripcion": "",
+      "bin_sap": "",
+      "bin_real": "A003-07-09-03",
+      "discrepancia": true,
+      "bin_destino": "A003-07-09-03",
+      "cantidad": "",
+      "unidad": "",
+      "timestamp": "2026-07-20T11:12:36",
+      "accion": "regularizacion",
+      "huerfano": true,
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604708",
+      "producto": "",
+      "descripcion": "",
+      "bin_sap": "",
+      "bin_real": "A003-07-09-03",
+      "discrepancia": true,
+      "bin_destino": "A003-07-09-03",
+      "cantidad": "",
+      "unidad": "",
+      "timestamp": "2026-07-20T11:12:36",
+      "accion": "regularizacion",
+      "huerfano": true,
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604712",
+      "producto": "",
+      "descripcion": "",
+      "bin_sap": "",
+      "bin_real": "A003-07-09-03",
+      "discrepancia": true,
+      "bin_destino": "A003-07-09-03",
+      "cantidad": "",
+      "unidad": "",
+      "timestamp": "2026-07-20T11:12:36",
+      "accion": "regularizacion",
+      "huerfano": true,
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604717",
+      "producto": "",
+      "descripcion": "",
+      "bin_sap": "",
+      "bin_real": "A003-07-09-03",
+      "discrepancia": true,
+      "bin_destino": "A003-07-09-03",
+      "cantidad": "",
+      "unidad": "",
+      "timestamp": "2026-07-20T11:12:36",
+      "accion": "regularizacion",
+      "huerfano": true,
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604715",
+      "producto": "",
+      "descripcion": "",
+      "bin_sap": "",
+      "bin_real": "A003-07-09-03",
+      "discrepancia": true,
+      "bin_destino": "A003-07-09-03",
+      "cantidad": "",
+      "unidad": "",
+      "timestamp": "2026-07-20T11:12:36",
+      "accion": "regularizacion",
+      "huerfano": true,
+      "batch_id": "eiuun8"
+    },
+    {
+      "lote": "A260604704",
+      "producto": "",
+      "descripcion": "",
+      "bin_sap": "",
+      "bin_real": "A003-07-09-03",
+      "discrepancia": true,
+      "bin_destino": "A003-07-09-03",
+      "cantidad": "",
+      "unidad": "",
+      "timestamp": "2026-07-20T11:12:36",
+      "accion": "regularizacion",
+      "huerfano": true,
+      "batch_id": "eiuun8"
+    }
+  ]
+}
