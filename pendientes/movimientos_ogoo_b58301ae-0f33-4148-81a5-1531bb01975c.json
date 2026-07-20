@@ -1,0 +1,66 @@
+{
+  "schema": "ejecutable_v1",
+  "id": "b58301ae-0f33-4148-81a5-1531bb01975c",
+  "operario": "ogoo",
+  "fecha": "2026-07-20",
+  "hora_inicio": "10:37:36",
+  "hora_fin": "10:53:04",
+  "total": 5,
+  "movimientos": [
+    {
+      "accion": "regularizacion",
+      "lote": "21170",
+      "producto": "1000019538006",
+      "bin_origen": "CORTE",
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 95,
+      "unidad": "M",
+      "batch_id": "7av0dl",
+      "timestamp": "2026-07-20T10:52:55"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "18113",
+      "producto": "1000019538006",
+      "bin_origen": "CORTE",
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 116200,
+      "unidad": "M",
+      "batch_id": "7av0dl",
+      "timestamp": "2026-07-20T10:52:55"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "23772",
+      "producto": "1000019538016",
+      "bin_origen": "CORTE",
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 59,
+      "unidad": "M",
+      "batch_id": "7av0dl",
+      "timestamp": "2026-07-20T10:52:55"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "13674",
+      "producto": "1000019538006",
+      "bin_origen": "A001-04A-06-02",
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 88800,
+      "unidad": "M",
+      "batch_id": "7av0dl",
+      "timestamp": "2026-07-20T10:52:55"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "A260503307",
+      "producto": "2000030331004",
+      "bin_origen": "A001-05B-01-02",
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 60,
+      "unidad": "M",
+      "batch_id": "7av0dl",
+      "timestamp": "2026-07-20T10:52:55"
+    }
+  ]
+}
