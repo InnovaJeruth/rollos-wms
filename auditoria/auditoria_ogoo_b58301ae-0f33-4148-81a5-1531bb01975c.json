@@ -1,0 +1,148 @@
+{
+  "schema": "auditoria_v1",
+  "id": "b58301ae-0f33-4148-81a5-1531bb01975c",
+  "operario": "ogoo",
+  "fecha": "2026-07-20",
+  "hora_inicio": "10:37:36",
+  "hora_fin": "10:53:04",
+  "dispositivo": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Mobile Safari/537.36",
+  "kpis": {
+    "duracion_seg": 928,
+    "duracion_min": 15,
+    "total_movimientos": 5,
+    "total_discrepancias": 5,
+    "total_huerfanos": 0,
+    "total_ejecutables": 5,
+    "por_accion": {
+      "traslado_individual": 0,
+      "traslado_masivo": 0,
+      "regularizacion": 5
+    },
+    "seg_por_movimiento": 186
+  },
+  "huerfanos": [],
+  "discrepancias": [
+    {
+      "lote": "21170",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-09-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-07-20T10:52:55",
+      "batch_id": "7av0dl"
+    },
+    {
+      "lote": "18113",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-09-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-07-20T10:52:55",
+      "batch_id": "7av0dl"
+    },
+    {
+      "lote": "23772",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-09-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-07-20T10:52:55",
+      "batch_id": "7av0dl"
+    },
+    {
+      "lote": "13674",
+      "bin_sap": "A001-04A-06-02",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-09-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-07-20T10:52:55",
+      "batch_id": "7av0dl"
+    },
+    {
+      "lote": "A260503307",
+      "bin_sap": "A001-05B-01-02",
+      "bin_real": "A001-06-09-02",
+      "bin_destino": "A001-06-09-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-07-20T10:52:55",
+      "batch_id": "7av0dl"
+    }
+  ],
+  "movimientos": [
+    {
+      "lote": "21170",
+      "producto": "1000019538006",
+      "descripcion": "TELA PANT DRIL DW0004, MARRON",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 95,
+      "unidad": "M",
+      "timestamp": "2026-07-20T10:52:55",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "7av0dl"
+    },
+    {
+      "lote": "18113",
+      "producto": "1000019538006",
+      "descripcion": "TELA PANT DRIL DW0004, MARRON",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 116200,
+      "unidad": "M",
+      "timestamp": "2026-07-20T10:52:55",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "7av0dl"
+    },
+    {
+      "lote": "23772",
+      "producto": "1000019538016",
+      "descripcion": "TELA PANT DRIL DW0004, BEIGE/HABANO",
+      "bin_sap": "CORTE",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 59,
+      "unidad": "M",
+      "timestamp": "2026-07-20T10:52:55",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "7av0dl"
+    },
+    {
+      "lote": "13674",
+      "producto": "1000019538006",
+      "descripcion": "TELA PANT DRIL DW0004, MARRON",
+      "bin_sap": "A001-04A-06-02",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 88800,
+      "unidad": "M",
+      "timestamp": "2026-07-20T10:52:55",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "7av0dl"
+    },
+    {
+      "lote": "A260503307",
+      "producto": "2000030331004",
+      "descripcion": "TA CAM PIMAGOLD C31797, AZUL",
+      "bin_sap": "A001-05B-01-02",
+      "bin_real": "A001-06-09-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-09-02",
+      "cantidad": 60,
+      "unidad": "M",
+      "timestamp": "2026-07-20T10:52:55",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "7av0dl"
+    }
+  ]
+}
