@@ -24,9 +24,8 @@ import github_client as gh
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _norm_lote(lote: str) -> str:
-    """Replica normLote() de common.js: trim + elimina ceros a la izquierda."""
-    s = lote.strip().lstrip("0")
-    return s if s else "0"
+    """Replica normLote() de common.js: trim solamente (preserva ceros SAP)."""
+    return lote.strip() or "0"
 
 
 def _parse_cantidad(s: str) -> float:
@@ -59,10 +58,8 @@ def parsear_txt(ruta_txt: str) -> list:
     with open(ruta_txt, encoding="latin-1") as f:
         for line in f:
             line = line.rstrip()
-            if not line.startswith("|A001|"):
-                continue
             partes = [p.strip() for p in line.split("|")]
-            if len(partes) < 17:
+            if len(partes) < 17 or not partes[1].startswith("A"):
                 continue
 
             lote_raw = partes[16]

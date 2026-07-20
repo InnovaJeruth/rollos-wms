@@ -1601,8 +1601,8 @@
     await persistBatch();
     document.getElementById('inp-bulk-scan').value = '';
     renderBulkList();
-    if (!inv) flash('⚠ ' + lote + ' no esta en SAP (huerfano)', '');
-    else flash('+ ' + lote + ' agregado (SAP lo tenia en ' + (inv.ubicacion || 'otro estante') + ')', 'ok');
+    if (!inv) flash('⚠ ' + loteRaw + ' no esta en SAP (huerfano)', '');
+    else flash('+ ' + loteRaw + ' agregado (SAP lo tenia en ' + (inv.ubicacion || 'otro estante') + ')', 'ok');
   }
 
   function renderBulkList() {
@@ -1763,7 +1763,6 @@
       unidad: inv.unidad,
       accion: 'traslado_individual'  // entry point siempre individual
     });
-
     // Caso especial: SAP no tiene ubicacion registrada → saltamos la pregunta SI/NO
     if (!inv.ubicacion) {
       state.currentMov.discrepancia = true;
@@ -1774,7 +1773,7 @@
       return;
     }
 
-    document.getElementById('conf-lote').textContent = /^\d+$/.test(String(inv.lote)) ? String(inv.lote).padStart(10, '0') : inv.lote;
+    document.getElementById('conf-lote').textContent = inv.lote;
     document.getElementById('conf-producto').textContent = inv.producto || '(sin codigo)';
     document.getElementById('conf-descripcion').textContent = inv.descripcion || '';
     document.getElementById('conf-bin-sap').textContent = inv.ubicacion;

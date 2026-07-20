@@ -15,8 +15,12 @@ Uso:
 
 import argparse
 import os
+import threading
 import time
 from datetime import datetime
+
+import win32con
+import win32gui
 
 from sap_login import obtener_sesion_sap
 
@@ -30,6 +34,33 @@ from sap_login import obtener_sesion_sap
 # Si en el futuro SAP renumera los nodos, actualizar aca.
 NODO_PADRE_UBICACIONES = "C000000011"
 NODO_HOJA_UBICACIONES  = "N000000139"
+
+
+def _monitorear_seguridad_sap(stop_event: threading.Event) -> None:
+    """
+    Hilo que acepta automaticamente el dialogo 'Seguridad SAP GUI'.
+    Ese dialogo es una ventana Windows nativa — no es accesible via SAP GUI
+    Scripting, hay que encontrarlo con win32gui y hacer clic en 'Permitir'.
+    """
+    def _click_permitir(child_hwnd, _):
+        if win32gui.GetWindowText(child_hwnd) in ("Permitir", "Allow"):
+            win32gui.PostMessage(child_hwnd, win32con.BM_CLICK, 0, 0)
+        return True
+
+    def _buscar_y_aceptar(hwnd, _):
+        titulo = win32gui.GetWindowText(hwnd)
+        if win32gui.IsWindowVisible(hwnd) and (
+            "Seguridad SAP" in titulo or "SAP GUI Security" in titulo
+        ):
+            win32gui.EnumChildWindows(hwnd, _click_permitir, None)
+        return True
+
+    while not stop_event.is_set():
+        try:
+            win32gui.EnumWindows(_buscar_y_aceptar, None)
+        except Exception:
+            pass
+        time.sleep(0.3)
 
 
 def _esperar_elemento(session, element_id: str, timeout: float = 15.0, interval: float = 0.3):
@@ -82,63 +113,108 @@ def descargar_inventario(
         carpeta = os.path.abspath(carpeta)
     os.makedirs(carpeta, exist_ok=True)
 
-    session = obtener_sesion_sap()
+    # Hilo que acepta automaticamente el dialogo "Seguridad SAP GUI" si aparece.
+    # Ese dialogo es una ventana Windows nativa, no accesible via SAP GUI Scripting.
+    _stop_monitor = threading.Event()
+    _monitor = threading.Thread(
+        target=_monitorear_seguridad_sap, args=(_stop_monitor,), daemon=True
+    )
+    _monitor.start()
 
-    # 1) Abrir transaccion /SCWM/MON
-    print(f"[SCWM/MON] Abriendo transaccion en almacen {almacen}...")
-    session.findById("wnd[0]/tbar[0]/okcd").text = "/n/SCWM/MON"
-    session.findById("wnd[0]/tbar[0]/btn[0]").press()
-
-    # 2) Filtro inicial (almacen + monitor) — esperar a que aparezca la ventana modal
-    ventana_filtro = _esperar_elemento(session, "wnd[1]/usr/ctxtP_LGNUM")
-    ventana_filtro.text = almacen
-    session.findById("wnd[1]/usr/ctxtP_MONIT").text = monitor
-    session.findById("wnd[1]/tbar[0]/btn[8]").press()  # F8 = ejecutar
-
-    # 3) Arbol lateral: esperar a que se dibuje y navegar
-    arbol = _esperar_elemento(session, "wnd[0]/usr/shell/shellcont[0]/shell")
-    arbol.expandNode(NODO_PADRE_UBICACIONES)
-    arbol.selectedNode = NODO_HOJA_UBICACIONES
-    arbol.doubleClickNode(NODO_HOJA_UBICACIONES)
-
-    # 4) Filtro rango de tipos de almacen (A001..A007) — nueva ventana modal
-    print(f"[SCWM/MON] Filtrando tipos {tipo_desde}..{tipo_hasta}...")
-    ventana_rango = _esperar_elemento(session, "wnd[1]/usr/ctxtS_LGTYP-LOW")
-    ventana_rango.text = tipo_desde
-    session.findById("wnd[1]/usr/ctxtS_LGTYP-HIGH").text = tipo_hasta
-    session.findById("wnd[1]/tbar[0]/btn[8]").press()
-
-    # 5) Menu contextual del grid: Exportar -> PC (archivo local)
-    print("[SCWM/MON] Exportando a archivo local...")
-    grid = _esperar_elemento(session, "wnd[0]/usr/shell/shellcont[1]/shell/shellcont[0]/shell", timeout=30)
-    grid.pressToolbarContextButton("&MB_EXPORT")
-    grid.selectContextMenuItem("&PC")
-
-    # 6) Aceptar formato por defecto (Sin conversion / texto plano)
-    _esperar_elemento(session, "wnd[1]/tbar[0]/btn[0]").press()
-
-    # 7) Dialogo de guardar: replica el flujo del macro (3 niveles anidados)
-    _esperar_elemento(session, "wnd[1]/usr/ctxtDY_PATH").setFocus()
-    session.findById("wnd[1]").sendVKey(4)  # F4
-
-    _esperar_elemento(session, "wnd[2]/usr/ctxtDY_PATH").setFocus()
-    session.findById("wnd[2]").sendVKey(4)
-
-    _esperar_elemento(session, "wnd[3]/usr/ctxtDY_PATH").text = carpeta
-    session.findById("wnd[3]/usr/ctxtDY_FILENAME").text = nombre_archivo
-    session.findById("wnd[3]/tbar[0]/btn[11]").press()  # guardar
-    session.findById("wnd[2]/tbar[0]/btn[11]").press()
-    session.findById("wnd[1]/tbar[0]/btn[11]").press()
-
-    # 8) Popup opcional de "sobrescribir archivo"
     try:
-        session.findById("wnd[1]/tbar[0]/btn[0]").press()
-    except Exception:
-        pass  # no aparecio, ok
+        session = obtener_sesion_sap()
 
-    ruta_final = os.path.join(carpeta, nombre_archivo)
-    print(f"[OK] Inventario exportado: {ruta_final}")
-    return ruta_final
+        # 1) Abrir transaccion /SCWM/MON
+        print(f"[SCWM/MON] Abriendo transaccion en almacen {almacen}...")
+        session.findById("wnd[0]/tbar[0]/okcd").text = "/n/SCWM/MON"
+        session.findById("wnd[0]/tbar[0]/btn[0]").press()
+
+        # 2) Filtro inicial (almacen + monitor)
+        # Tres variantes segun configuracion SAP del usuario:
+        #   A) Popup modal en wnd[1]     — ctxtP_LGNUM en wnd[1]
+        #   B) Pantalla inline en wnd[0] — ctxtP_LGNUM en wnd[0]
+        #   C) Variante guardada: SAP salta el filtro y va directo al monitor
+        time.sleep(0.5)
+        _filtro_aplicado = False
+        for wnd_filtro in ("wnd[1]", "wnd[0]"):
+            try:
+                campo_lgnum = _esperar_elemento(session, f"{wnd_filtro}/usr/ctxtP_LGNUM", timeout=5)
+                campo_lgnum.text = almacen
+                session.findById(f"{wnd_filtro}/usr/ctxtP_MONIT").text = monitor
+                session.findById(f"{wnd_filtro}/tbar[0]/btn[8]").press()  # F8 = ejecutar
+                _filtro_aplicado = True
+                print(f"[SCWM/MON] Filtro inicial aplicado via {wnd_filtro}.")
+                break
+            except TimeoutError:
+                continue
+
+        if not _filtro_aplicado:
+            print("[SCWM/MON] Pantalla de filtro no encontrada — monitor ya visible (variante guardada).")
+
+        # 3) Arbol lateral: esperar a que se dibuje y navegar
+        arbol = _esperar_elemento(session, "wnd[0]/usr/shell/shellcont[0]/shell")
+        arbol.expandNode(NODO_PADRE_UBICACIONES)
+        arbol.selectedNode = NODO_HOJA_UBICACIONES
+        arbol.doubleClickNode(NODO_HOJA_UBICACIONES)
+
+        # 4) Filtro rango de tipos de almacen (A001..A007)
+        print(f"[SCWM/MON] Filtrando tipos {tipo_desde}..{tipo_hasta}...")
+        time.sleep(0.5)
+        _rango_aplicado = False
+        for wnd_rango in ("wnd[1]", "wnd[0]"):
+            try:
+                campo_lgtyp = _esperar_elemento(session, f"{wnd_rango}/usr/ctxtS_LGTYP-LOW", timeout=5)
+                campo_lgtyp.text = tipo_desde
+                session.findById(f"{wnd_rango}/usr/ctxtS_LGTYP-HIGH").text = tipo_hasta
+                session.findById(f"{wnd_rango}/tbar[0]/btn[8]").press()
+                _rango_aplicado = True
+                print(f"[SCWM/MON] Filtro de tipos aplicado via {wnd_rango}.")
+                break
+            except TimeoutError:
+                continue
+
+        if not _rango_aplicado:
+            print("[SCWM/MON] Filtro de tipos no encontrado — usando datos ya cargados en el monitor.")
+
+        # 5) Menu contextual del grid: Exportar -> PC (archivo local)
+        print("[SCWM/MON] Exportando a archivo local...")
+        grid = _esperar_elemento(
+            session, "wnd[0]/usr/shell/shellcont[1]/shell/shellcont[0]/shell", timeout=30
+        )
+        grid.pressToolbarContextButton("&MB_EXPORT")
+        grid.selectContextMenuItem("&PC")
+
+        # 6) Aceptar formato por defecto (Sin conversion / texto plano)
+        _esperar_elemento(session, "wnd[1]/tbar[0]/btn[0]").press()
+
+        # 7) Dialogo de guardar: replica el flujo del macro (3 niveles anidados)
+        _esperar_elemento(session, "wnd[1]/usr/ctxtDY_PATH").setFocus()
+        session.findById("wnd[1]").sendVKey(4)  # F4
+
+        _esperar_elemento(session, "wnd[2]/usr/ctxtDY_PATH").setFocus()
+        session.findById("wnd[2]").sendVKey(4)
+
+        _esperar_elemento(session, "wnd[3]/usr/ctxtDY_PATH").text = carpeta
+        session.findById("wnd[3]/usr/ctxtDY_FILENAME").text = nombre_archivo
+        session.findById("wnd[3]/tbar[0]/btn[11]").press()  # guardar
+        session.findById("wnd[2]/tbar[0]/btn[11]").press()
+        session.findById("wnd[1]/tbar[0]/btn[11]").press()
+
+        # 8) Popup opcional "Sobrescribir archivo" (el dialogo de Seguridad SAP GUI
+        #    lo maneja el hilo _monitor en paralelo, no hace falta capturarlo aqui)
+        time.sleep(0.5)
+        try:
+            session.findById("wnd[1]/tbar[0]/btn[0]").press()
+        except Exception:
+            pass
+
+        ruta_final = os.path.join(carpeta, nombre_archivo)
+        print(f"[OK] Inventario exportado: {ruta_final}")
+        return ruta_final
+
+    finally:
+        _stop_monitor.set()
+        _monitor.join(timeout=2)
 
 
 def _parse_args() -> argparse.Namespace:

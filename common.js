@@ -140,7 +140,7 @@
            pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
   }
   function normBin(s) { return String(s || '').trim().toUpperCase(); }
-  function normLote(s) { return String(s || '').trim().replace(/^0+/, '') || '0'; }
+  function normLote(s) { return String(s || '').trim() || '0'; }
   function shortId() { return Math.random().toString(36).slice(2, 8); }
 
   function b64encodeUtf8(str) { return btoa(unescape(encodeURIComponent(str))); }

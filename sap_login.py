@@ -4,6 +4,7 @@ Módulo reutilizable para conectarse a SAP GUI de forma inteligente.
 """
 
 import win32com.client
+import pythoncom
 import subprocess
 import time
 import os
@@ -109,13 +110,42 @@ def obtener_sesion_sap():
       - Las credenciales son rechazadas por SAP
       - La contraseña está expirada
     """
+    # Inicializar COM en este thread (necesario si se llama desde un thread secundario)
+    pythoncom.CoInitialize()
+
     abrir_saplogon()
 
+    SapGuiAuto = None
+    last_err = None
+
+    # Intento 1: moniker directo (funciona en la mayoría de equipos)
     try:
         SapGuiAuto = win32com.client.GetObject("SAPGUI")
+    except Exception as e:
+        last_err = e
+
+    # Intento 2: SAP ROT Wrapper (necesario en algunos Windows donde el moniker falla)
+    if SapGuiAuto is None:
+        try:
+            rot = win32com.client.Dispatch("SapROTWr.SapROTWrapper")
+            SapGuiAuto = rot.GetROTEntry("SAPGUI")
+        except Exception as e2:
+            last_err = e2
+
+    if SapGuiAuto is None:
+        raise RuntimeError(
+            f"❌ No se pudo conectar al Scripting Engine de SAP.\n"
+            f"   Verifique:\n"
+            f"     1. SAP GUI esté abierto\n"
+            f"     2. Scripting habilitado: Opciones → Accesibilidad → Enable Scripting\n"
+            f"     3. No esté bloqueado por política de equipo\n"
+            f"   Detalle: {last_err}"
+        )
+
+    try:
         application = SapGuiAuto.GetScriptingEngine
     except Exception as e:
-        raise RuntimeError(f"❌ Error al conectar con SAP Scripting Engine. ¿Está habilitado el Scripting? {e}")
+        raise RuntimeError(f"❌ Error al obtener el Scripting Engine de SAP: {e}")
 
     # 1. Si no hay conexiones (Pantalla principal de servidores)
     if application.Children.Count == 0:
