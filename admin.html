@@ -363,6 +363,8 @@
   let _dashboardMovs = [];
   let _malUbicados = [];
   let _procesadosLoteMap = {};
+  let _huerfanos = [];
+  let _huerfanoPage = 0;
 
   // Cache de datos y filtros globales del dashboard
   let _allAuditorias  = null;
@@ -715,7 +717,7 @@
     }
     tbody.innerHTML = filtered.map((m) => {
       const lraw  = String(m.lote || '').trim().toUpperCase();
-      const lnorm = lraw.replace(/^0+/, '') || lraw;
+      const lnorm = lraw;
       const res   = _procesadosLoteMap[lnorm];
       let sapCell = `<span style="color:var(--text-dim);font-size:11px;">sin datos</span>`;
       if (res) {
@@ -738,6 +740,33 @@
         <td>${sapCell}</td>
       </tr>`;
     }).join('');
+  }
+
+  function renderHuerfanosPage() {
+    const PAGE  = 20;
+    const tbody = document.getElementById('dash-huerf-tbody');
+    if (!tbody) return;
+    const total  = _huerfanos.length;
+    const pages  = Math.max(1, Math.ceil(total / PAGE));
+    _huerfanoPage = Math.max(0, Math.min(_huerfanoPage, pages - 1));
+    const start = _huerfanoPage * PAGE;
+    const slice = _huerfanos.slice(start, start + PAGE);
+    const modoLabel = { traslado_individual: 'Individual', traslado_masivo: 'Masivo', regularizacion: 'Regular.' };
+    tbody.innerHTML = slice.map((m) => {
+      const modo = modoLabel[m.accion] || m.accion || '?';
+      return `<tr>
+        <td style="font-family:monospace;">${m.lote || '?'}</td>
+        <td>${m._operario || '?'}</td>
+        <td>${modo}</td>
+        <td>${m._fecha || '?'}</td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="4" style="color:var(--text-dim);text-align:center;padding:14px;">Sin huerfanos con los filtros activos.</td></tr>`;
+    const info = document.getElementById('dash-huerf-info');
+    const prev = document.getElementById('dash-huerf-prev');
+    const next = document.getElementById('dash-huerf-next');
+    if (info) info.textContent = total > 0 ? `${start + 1}–${Math.min(start + PAGE, total)} de ${total}` : '';
+    if (prev) { prev.disabled = _huerfanoPage === 0; prev.onclick = () => { _huerfanoPage--; renderHuerfanosPage(); }; }
+    if (next) { next.disabled = _huerfanoPage >= pages - 1; next.onclick = () => { _huerfanoPage++; renderHuerfanosPage(); }; }
   }
 
   function fmtSeg(seg) {
@@ -813,7 +842,7 @@
     procesadosList.forEach((p) => {
       (p.movimientos || []).forEach((m) => {
         const lraw  = String(m.lote || '').trim().toUpperCase();
-        const lnorm = lraw.replace(/^0+/, '') || lraw;
+        const lnorm = lraw;
         if (!lnorm) return;
         if (m.resultado_sap === 'ok' || !_procesadosLoteMap[lnorm]) {
           _procesadosLoteMap[lnorm] = {
@@ -855,7 +884,7 @@
       const seenLotes = new Set();
       movs.filter((m) => m.discrepancia && m.bin_sap && m.bin_real && m.bin_sap !== m.bin_real)
           .forEach((m) => {
-            const lk = String(m.lote || '').replace(/^0+/, '') || m.lote;
+            const lk = String(m.lote || '').trim() || m.lote;
             if (!seenLotes.has(lk)) { seenLotes.add(lk); _malUbicados.push({ ...m, operario: op }); }
           });
       movs.forEach(m => {
@@ -879,6 +908,11 @@
       acumular(s);
       turnosCount++;
     });
+
+    _huerfanos = _dashboardMovs
+      .filter((m) => m.huerfano === true)
+      .sort((a, b) => (b._fecha || '').localeCompare(a._fecha || ''));
+    _huerfanoPage = 0;
 
     const segPorMov    = totMovs > 0 ? Math.round(totSeg / totMovs) : 0;
     const movsPorTurno = turnosCount > 0 ? (totMovs / turnosCount).toFixed(1) : '0';
@@ -1067,9 +1101,29 @@
       html += `</table></div>`;
     }
 
-    // Historial SAP + Mal ubicados
+    // Historial SAP + Mal ubicados + Huerfanos
     html += historialHtml;
     html += malUbHtml;
+
+    if (_huerfanos.length > 0) {
+      const btnSt = 'padding:5px 12px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2);cursor:pointer;color:var(--text);';
+      html += `<div class="card">
+        <div class="label-strong" style="color:var(--error);margin-bottom:10px;">
+          &#9888; Huerfanos (${_huerfanos.length}) — rollos escaneados no encontrados en inventario SAP
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="kpi-table">
+            <thead><tr><th>Lote</th><th>Operario</th><th>Modo</th><th>Fecha</th></tr></thead>
+            <tbody id="dash-huerf-tbody"></tbody>
+          </table>
+        </div>
+        <div id="dash-huerf-pag" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;">
+          <button id="dash-huerf-prev" style="${btnSt}">&#8592; Ant.</button>
+          <span id="dash-huerf-info" style="flex:1;text-align:center;color:var(--text-dim);"></span>
+          <button id="dash-huerf-next" style="${btnSt}">Sig. &#8594;</button>
+        </div>
+      </div>`;
+    }
 
     cont.innerHTML = html;
 
@@ -1094,6 +1148,9 @@
         if (el) { el.addEventListener('input', filtrarMalUbicados); el.addEventListener('change', filtrarMalUbicados); }
       });
     }
+
+    // Tabla de huerfanos paginada
+    renderHuerfanosPage();
   }
 
   async function clearDashboardCache() {
