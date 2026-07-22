@@ -363,8 +363,9 @@
   let _dashboardMovs = [];
   let _malUbicados = [];
   let _procesadosLoteMap = {};
-  let _huerfanos = [];
-  let _huerfanoPage = 0;
+  let _anomalias = [];
+  let _anomaliaPage = 0;
+  let _anomaliaFiltroTipo = '';
 
   // Cache de datos y filtros globales del dashboard
   let _allAuditorias  = null;
@@ -699,74 +700,55 @@
     return result;
   }
 
-  function filtrarMalUbicados() {
-    const opFilt   = (document.getElementById('dash-filter-op')?.value || '');
-    const catFilt  = (document.getElementById('dash-filter-cat')?.value || '');
-    const loteFilt = (document.getElementById('dash-filter-lote')?.value || '').trim().toLowerCase();
-    const filtered = _malUbicados.filter((m) => {
-      if (opFilt  && m.operario !== opFilt) return false;
-      if (catFilt && m.accion   !== catFilt) return false;
+  function renderMovTable() {
+    const PAGE     = 20;
+    const tbody    = document.getElementById('mov-tbody');
+    if (!tbody) return;
+    const tipoFilt = (document.getElementById('mov-filter-tipo')?.value || '');
+    const opFilt   = (document.getElementById('mov-filter-op')?.value   || '');
+    const loteFilt = (document.getElementById('mov-filter-lote')?.value || '').trim().toLowerCase();
+    const filtered = _anomalias.filter((m) => {
+      if (tipoFilt && m.tipo    !== tipoFilt) return false;
+      if (opFilt   && m._operario !== opFilt) return false;
       if (loteFilt && !String(m.lote || '').toLowerCase().includes(loteFilt)) return false;
       return true;
     });
-    const tbody = document.getElementById('dash-malub-tbody');
-    if (!tbody) return;
-    if (!filtered.length) {
-      tbody.innerHTML = `<tr><td colspan="7" style="color:var(--text-dim);text-align:center;padding:16px;">Sin resultados con estos filtros.</td></tr>`;
-      return;
-    }
-    tbody.innerHTML = filtered.map((m) => {
-      const lraw  = String(m.lote || '').trim().toUpperCase();
-      const lnorm = lraw;
-      const res   = _procesadosLoteMap[lnorm];
-      let sapCell = `<span style="color:var(--text-dim);font-size:11px;">sin datos</span>`;
-      if (res) {
-        if (res.resultado_sap === 'ok')
-          sapCell = `<span style="color:var(--accent);">&#10003; ok</span>`;
-        else if (res.resultado_sap === 'error')
-          sapCell = `<span style="color:var(--error);" title="${res.motivo_sap || ''}">&#10007; error</span>`;
-        else
-          sapCell = `<span style="color:var(--accent-2);">en SAP</span>`;
-      }
-      const desc        = m.descripcion || '—';
-      const loteDisplay = String(m.lote || '').padStart(10, '0');
-      return `<tr>
-        <td>${m.operario}</td>
-        <td style="font-family:monospace;font-size:12px;">${loteDisplay}</td>
-        <td style="word-break:break-word;min-width:120px;">${desc}</td>
-        <td style="color:var(--warn);">${m.bin_sap}</td>
-        <td style="color:var(--accent);">${m.bin_real}</td>
-        <td>${m.bin_destino || '—'}</td>
-        <td>${sapCell}</td>
-      </tr>`;
-    }).join('');
-  }
-
-  function renderHuerfanosPage() {
-    const PAGE  = 20;
-    const tbody = document.getElementById('dash-huerf-tbody');
-    if (!tbody) return;
-    const total  = _huerfanos.length;
+    const total  = filtered.length;
     const pages  = Math.max(1, Math.ceil(total / PAGE));
-    _huerfanoPage = Math.max(0, Math.min(_huerfanoPage, pages - 1));
-    const start = _huerfanoPage * PAGE;
-    const slice = _huerfanos.slice(start, start + PAGE);
+    _anomaliaPage = Math.max(0, Math.min(_anomaliaPage, pages - 1));
+    const start = _anomaliaPage * PAGE;
+    const slice = filtered.slice(start, start + PAGE);
     const modoLabel = { traslado_individual: 'Individual', traslado_masivo: 'Masivo', regularizacion: 'Regular.' };
     tbody.innerHTML = slice.map((m) => {
+      const tipoBadge = m.tipo === 'mal_ubicado'
+        ? `<span style="color:var(--warn);font-weight:600;">Mal ubicado</span>`
+        : `<span style="color:var(--error);font-weight:600;">Sin registro SAP</span>`;
       const modo = modoLabel[m.accion] || m.accion || '?';
+      const lraw = String(m.lote || '').trim().toUpperCase();
+      const res  = _procesadosLoteMap[lraw];
+      let sapCell = '—';
+      if (res) {
+        if (res.resultado_sap === 'ok')        sapCell = `<span style="color:var(--accent);">&#10003; ok</span>`;
+        else if (res.resultado_sap === 'error') sapCell = `<span style="color:var(--error);">&#10007; error</span>`;
+        else                                    sapCell = `<span style="color:var(--accent-2);">en SAP</span>`;
+      }
       return `<tr>
-        <td style="font-family:monospace;">${m.lote || '?'}</td>
+        <td>${tipoBadge}</td>
+        <td style="font-family:monospace;font-size:12px;">${m.lote || '?'}</td>
         <td>${m._operario || '?'}</td>
         <td>${modo}</td>
         <td>${m._fecha || '?'}</td>
+        <td>${m.bin_sap || '—'}</td>
+        <td>${m.bin_real || '—'}</td>
+        <td>${sapCell}</td>
       </tr>`;
-    }).join('') || `<tr><td colspan="4" style="color:var(--text-dim);text-align:center;padding:14px;">Sin huerfanos con los filtros activos.</td></tr>`;
-    const info = document.getElementById('dash-huerf-info');
-    const prev = document.getElementById('dash-huerf-prev');
-    const next = document.getElementById('dash-huerf-next');
-    if (info) info.textContent = total > 0 ? `${start + 1}–${Math.min(start + PAGE, total)} de ${total}` : '';
-    if (prev) { prev.disabled = _huerfanoPage === 0; prev.onclick = () => { _huerfanoPage--; renderHuerfanosPage(); }; }
-    if (next) { next.disabled = _huerfanoPage >= pages - 1; next.onclick = () => { _huerfanoPage++; renderHuerfanosPage(); }; }
+    }).join('') || `<tr><td colspan="8" style="color:var(--text-dim);text-align:center;padding:16px;">Sin resultados con estos filtros.</td></tr>`;
+    const info = document.getElementById('mov-info');
+    const prev = document.getElementById('mov-prev');
+    const next = document.getElementById('mov-next');
+    if (info) info.textContent = total > 0 ? `${start + 1}–${Math.min(start + PAGE, total)} de ${total}` : '0 registros';
+    if (prev) { prev.disabled = _anomaliaPage === 0; prev.onclick = () => { _anomaliaPage--; renderMovTable(); }; }
+    if (next) { next.disabled = _anomaliaPage >= pages - 1; next.onclick = () => { _anomaliaPage++; renderMovTable(); }; }
   }
 
   function fmtSeg(seg) {
@@ -909,11 +891,6 @@
       turnosCount++;
     });
 
-    _huerfanos = _dashboardMovs
-      .filter((m) => m.huerfano === true)
-      .sort((a, b) => (b._fecha || '').localeCompare(a._fecha || ''));
-    _huerfanoPage = 0;
-
     const segPorMov    = totMovs > 0 ? Math.round(totSeg / totMovs) : 0;
     const movsPorTurno = turnosCount > 0 ? (totMovs / turnosCount).toFixed(1) : '0';
 
@@ -960,73 +937,14 @@
       </div>`;
     }).join('');
 
-    // ── Historial SAP ─────────────────────────────────────────────────────────
-    let historialHtml = '';
-    if (procesadosList.length > 0) {
-      const filas = [...procesadosList]
-        .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))
-        .slice(0, 20)
-        .map((p) => {
-          const movs   = p.movimientos || [];
-          const nOk    = movs.filter((m) => m.resultado_sap === 'ok').length;
-          const nErr   = movs.filter((m) => m.resultado_sap === 'error').length;
-          const nSin   = movs.filter((m) => !m.resultado_sap).length;
-          const arch   = (p._path || '').split('/').pop().replace('.json', '');
-          const archSh = arch.length > 30 ? arch.slice(0, 28) + '…' : arch;
-          return `<tr>
-            <td style="font-family:monospace;font-size:11px;" title="${arch}">${archSh}</td>
-            <td>${p.operario || '?'}</td>
-            <td class="num">${nOk  > 0 ? `<span style="color:var(--accent);">${nOk}</span>`      : '—'}</td>
-            <td class="num">${nErr > 0 ? `<span style="color:var(--error);">${nErr}</span>`       : '—'}</td>
-            <td class="num">${nSin > 0 ? `<span style="color:var(--text-dim);">${nSin}</span>`    : '—'}</td>
-            <td>${p.fecha || '?'}</td>
-          </tr>`;
-        }).join('');
-      historialHtml = `<div class="card">
-        <div class="label-strong" style="margin-bottom:10px;">Historial de ejecucion SAP</div>
-        <div style="overflow-x:auto;">
-          <table class="kpi-table">
-            <tr><th>Archivo</th><th>Operario</th><th class="num">OK</th><th class="num">Errores</th><th class="num">Sin datos</th><th>Fecha</th></tr>
-            ${filas}
-          </table>
-        </div>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">"Sin datos" = ejecutado antes de la version del bot que registra resultado por lote.</div>
-      </div>`;
-    }
+    // ── Tabla unificada de anomalias ──────────────────────────────────────────
+    _anomalias = [
+      ..._malUbicados.map((m) => ({ ...m, tipo: 'mal_ubicado', _operario: m.operario || m._operario || '?' })),
+      ..._dashboardMovs.filter((m) => m.huerfano === true).map((m) => ({ ...m, tipo: 'sin_registro' }))
+    ].sort((a, b) => (b._fecha || '').localeCompare(a._fecha || ''));
+    _anomaliaPage = 0;
+    _anomaliaFiltroTipo = '';
 
-    // ── Mal ubicados con filtros ──────────────────────────────────────────────
-    let malUbHtml = '';
-    if (_malUbicados.length > 0) {
-      const opSet      = new Set(_malUbicados.map((m) => m.operario));
-      const opOptions  = Array.from(opSet).sort().map((op) => `<option value="${op}">${op}</option>`).join('');
-      const fStyle     = 'padding:6px 10px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);';
-      malUbHtml = `<div class="card">
-        <div class="label-strong" style="color:var(--warn);margin-bottom:10px;">
-          &#9888; Mal ubicados (${_malUbicados.length}) — ubicacion SAP &#8800; encontrado por operario
-        </div>
-        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
-          <select id="dash-filter-op" style="${fStyle}">
-            <option value="">Todos los operarios</option>${opOptions}
-          </select>
-          <select id="dash-filter-cat" style="${fStyle}">
-            <option value="">Todas las categorias</option>
-            <option value="traslado_individual">Individual</option>
-            <option value="traslado_masivo">Masivo</option>
-            <option value="regularizacion">Regularizacion</option>
-          </select>
-          <input type="text" id="dash-filter-lote" placeholder="Buscar lote…" style="${fStyle}width:130px;">
-        </div>
-        <div style="overflow-x:auto;">
-          <table class="kpi-table">
-            <thead><tr>
-              <th>Operario</th><th>Lote SAP</th><th>Descripcion</th>
-              <th>En SAP</th><th>Encontrado en</th><th>Destino</th><th>Enviado a SAP</th>
-            </tr></thead>
-            <tbody id="dash-malub-tbody"></tbody>
-          </table>
-        </div>
-      </div>`;
-    }
 
     // ── Semaforo exactitud ────────────────────────────────────────────────────
     const tasaExact = totMovsPutaway > 0
@@ -1066,8 +984,8 @@
     html += `<div class="kpi-card"><div class="label-strong">Turnos</div><div class="big-value">${turnosCount}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Movs totales</div><div class="big-value">${totMovs}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Listos para SAP</div><div class="big-value" style="color:var(--accent);">${totEjec}</div></div>`;
-    html += `<div class="kpi-card"><div class="label-strong">Mal ubicados</div><div class="big-value" style="color:var(--warn);">${_malUbicados.length}</div></div>`;
-    html += `<div class="kpi-card"><div class="label-strong">Sin estante (huerf)</div><div class="big-value" style="color:var(--error);">${totHuerf}</div></div>`;
+    html += `<div class="kpi-card" id="kpi-mal-ub" style="cursor:pointer;" title="Ver movimientos mal ubicados"><div class="label-strong">Mal ubicados</div><div class="big-value" style="color:var(--warn);">${_malUbicados.length}</div></div>`;
+    html += `<div class="kpi-card" id="kpi-sin-reg" style="cursor:pointer;" title="Ver movimientos sin registro SAP"><div class="label-strong">Sin registro SAP</div><div class="big-value" style="color:var(--error);">${totHuerf}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Procesados SAP</div><div class="big-value" style="color:var(--accent);">${totEnviados}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Tiempo total</div><div class="big-value">${fmtSeg(totSeg)}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Prom seg/mov</div><div class="big-value">${segPorMov}s</div></div>`;
@@ -1101,34 +1019,48 @@
       html += `</table></div>`;
     }
 
-    // Historial SAP + Mal ubicados + Huerfanos
-    html += historialHtml;
-    html += malUbHtml;
-
-    if (_huerfanos.length > 0) {
+    // Tabla unificada Movimientos (oculta, se revela al clic en card)
+    if (_anomalias.length > 0) {
+      const allOpsAnom = [...new Set(_anomalias.map((a) => a._operario).filter(Boolean))].sort();
+      const fSt  = 'padding:6px 10px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);';
       const btnSt = 'padding:5px 12px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2);cursor:pointer;color:var(--text);';
-      html += `<div class="card">
-        <div class="label-strong" style="color:var(--error);margin-bottom:10px;">
-          &#9888; Huerfanos (${_huerfanos.length}) — rollos escaneados no encontrados en inventario SAP
+      html += `<div id="card-movimientos" class="card" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div class="label-strong">Movimientos</div>
+          <button id="btn-mov-close" style="${btnSt}padding:2px 10px;font-size:18px;line-height:1;">&#215;</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">
+          <select id="mov-filter-tipo" style="${fSt}">
+            <option value="">Todos los tipos</option>
+            <option value="mal_ubicado">Mal ubicado</option>
+            <option value="sin_registro">Sin registro SAP</option>
+          </select>
+          <select id="mov-filter-op" style="${fSt}">
+            <option value="">Todos los operarios</option>
+            ${allOpsAnom.map((op) => `<option value="${op}">${op}</option>`).join('')}
+          </select>
+          <input type="text" id="mov-filter-lote" placeholder="Buscar lote&#8230;" style="${fSt}width:140px;">
         </div>
         <div style="overflow-x:auto;">
           <table class="kpi-table">
-            <thead><tr><th>Lote</th><th>Operario</th><th>Modo</th><th>Fecha</th></tr></thead>
-            <tbody id="dash-huerf-tbody"></tbody>
+            <thead><tr>
+              <th>Tipo</th><th>Lote</th><th>Operario</th><th>Modo</th><th>Fecha</th><th>En SAP</th><th>Encontrado en</th><th>Resultado SAP</th>
+            </tr></thead>
+            <tbody id="mov-tbody"></tbody>
           </table>
         </div>
-        <div id="dash-huerf-pag" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;">
-          <button id="dash-huerf-prev" style="${btnSt}">&#8592; Ant.</button>
-          <span id="dash-huerf-info" style="flex:1;text-align:center;color:var(--text-dim);"></span>
-          <button id="dash-huerf-next" style="${btnSt}">Sig. &#8594;</button>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;">
+          <button id="mov-prev" style="${btnSt}">&#8592; Ant.</button>
+          <span id="mov-info" style="flex:1;text-align:center;color:var(--text-dim);"></span>
+          <button id="mov-next" style="${btnSt}">Sig. &#8594;</button>
         </div>
       </div>`;
     }
 
     cont.innerHTML = html;
 
-    // Activar filtros globales
-    ['dash-gf-from', 'dash-gf-to', 'dash-gf-op'].forEach(id => {
+    // Filtros globales
+    ['dash-gf-from', 'dash-gf-to', 'dash-gf-op'].forEach((id) => {
       document.getElementById(id)?.addEventListener('change', () => {
         _filterDateFrom = document.getElementById('dash-gf-from')?.value || '';
         _filterDateTo   = document.getElementById('dash-gf-to')?.value   || '';
@@ -1140,17 +1072,32 @@
       _filterDateFrom = ''; _filterDateTo = ''; _filterOpGlobal = ''; renderDashboard();
     });
 
-    // Activar filtros de mal ubicados
-    if (_malUbicados.length > 0) {
-      filtrarMalUbicados();
-      ['dash-filter-op', 'dash-filter-cat', 'dash-filter-lote'].forEach((id) => {
-        const el = document.getElementById(id);
-        if (el) { el.addEventListener('input', filtrarMalUbicados); el.addEventListener('change', filtrarMalUbicados); }
-      });
-    }
+    // Cards clicables → revelar tabla Movimientos pre-filtrada
+    const _showMovTable = (tipo) => {
+      const card = document.getElementById('card-movimientos');
+      if (!card) return;
+      card.style.display = '';
+      const sel = document.getElementById('mov-filter-tipo');
+      if (sel) sel.value = tipo;
+      _anomaliaPage = 0;
+      renderMovTable();
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    document.getElementById('kpi-mal-ub')?.addEventListener('click', () => _showMovTable('mal_ubicado'));
+    document.getElementById('kpi-sin-reg')?.addEventListener('click', () => _showMovTable('sin_registro'));
+    document.getElementById('btn-mov-close')?.addEventListener('click', () => {
+      const card = document.getElementById('card-movimientos');
+      if (card) card.style.display = 'none';
+    });
 
-    // Tabla de huerfanos paginada
-    renderHuerfanosPage();
+    // Filtros de la tabla Movimientos
+    ['mov-filter-tipo', 'mov-filter-op', 'mov-filter-lote'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input',  () => { _anomaliaPage = 0; renderMovTable(); });
+        el.addEventListener('change', () => { _anomaliaPage = 0; renderMovTable(); });
+      }
+    });
   }
 
   async function clearDashboardCache() {
