@@ -143,6 +143,30 @@
   function normLote(s) { return String(s || '').trim() || '0'; }
   function shortId() { return Math.random().toString(36).slice(2, 8); }
 
+  // Formatea "YYYY-MM-DD" → "DD/MM/YYYY"
+  function fmtFecha(isoDate) {
+    if (!isoDate) return '-';
+    const m = String(isoDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : String(isoDate);
+  }
+  // Formatea ISO timestamp → "DD/MM/YYYY HH:MM:SS" en UTC-5 (Peru).
+  // Si el string termina en Z se asume UTC y se aplica -5h; si no, se usa local.
+  function fmtTS(isoTS) {
+    if (!isoTS) return '-';
+    const s  = String(isoTS);
+    const ms = Date.parse(s);
+    if (isNaN(ms)) return s;
+    const utc = s.endsWith('Z');
+    const d   = utc ? new Date(ms - 5 * 3600000) : new Date(ms);
+    const dd  = pad2(utc ? d.getUTCDate()    : d.getDate());
+    const mo  = pad2(utc ? d.getUTCMonth()+1 : d.getMonth()+1);
+    const yy  = utc ? d.getUTCFullYear()     : d.getFullYear();
+    const hh  = pad2(utc ? d.getUTCHours()   : d.getHours());
+    const mi  = pad2(utc ? d.getUTCMinutes() : d.getMinutes());
+    const ss  = pad2(utc ? d.getUTCSeconds() : d.getSeconds());
+    return `${dd}/${mo}/${yy} ${hh}:${mi}:${ss}`;
+  }
+
   function b64encodeUtf8(str) { return btoa(unescape(encodeURIComponent(str))); }
   function b64decodeUtf8(b64) {
     const clean = String(b64 || '').replace(/\s/g, '');
@@ -664,7 +688,7 @@
     STORES, openDB, dbGet, dbPut, dbDelete, dbGetAll, dbClear, dbCount, dbReplaceStore,
     withInventarioLock,
     // Utils
-    uuidv4, pad2, fechaISO, horaISO, tsISO, normBin, normLote, shortId,
+    uuidv4, pad2, fechaISO, horaISO, tsISO, normBin, normLote, shortId, fmtFecha, fmtTS,
     b64encodeUtf8, b64decodeUtf8,
     // gzip
     hasGzipSupport, gzipStringToBytes, gunzipBytesToString, bytesToBase64, base64ToBytes,

@@ -1216,7 +1216,7 @@
           }
         }
       }
-      info.innerHTML = `<strong>${count}</strong> rollos · actualizado: ${fecha || '-'}` + warn;
+      info.innerHTML = `<strong>${count}</strong> rollos · actualizado: ${WMS.fmtTS(fecha) || '-'}` + warn;
       card.style.borderColor = warn ? 'var(--warn)' : 'var(--border)';
       if (btn) { btn.disabled = false; btn.style.opacity = ''; }
     } else {

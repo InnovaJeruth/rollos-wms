@@ -629,7 +629,7 @@
     if (sesionActiva) {
       const n = (sesionActiva.movimientos || []).length;
       info.innerHTML = `<strong>${sesionActiva.operario}</strong> · ${n} movimientos<br>
-        <span style="font-size:13px; color:var(--text-dim);">Inicio: ${sesionActiva.fecha} ${sesionActiva.hora_inicio}</span>`;
+        <span style="font-size:13px; color:var(--text-dim);">Inicio: ${WMS.fmtFecha(sesionActiva.fecha)} ${sesionActiva.hora_inicio}</span>`;
       btnDiscard.style.display = '';
     } else {
       info.textContent = 'No hay sesion activa en este dispositivo';
@@ -646,7 +646,7 @@
       list.innerHTML = all.map((it) => {
         const j = it.json || {};
         const movs = (j.movimientos || []).length;
-        return `<div class="pending-item">• <strong>${j.operario || '?'}</strong> · ${j.fecha || ''} ${j.hora_inicio || ''}→${j.hora_fin || '?'} · ${movs} movs</div>`;
+        return `<div class="pending-item">• <strong>${j.operario || '?'}</strong> · ${WMS.fmtFecha(j.fecha || '')} ${j.hora_inicio || ''}→${j.hora_fin || '?'} · ${movs} movs</div>`;
       }).join('');
     }
   }
@@ -737,7 +737,7 @@
         <td style="font-family:monospace;font-size:12px;">${m.lote || '?'}</td>
         <td>${m._operario || '?'}</td>
         <td>${modo}</td>
-        <td>${m._fecha || '?'}</td>
+        <td>${WMS.fmtFecha(m._fecha) || '?'}</td>
         <td>${m.bin_sap || '—'}</td>
         <td>${m.bin_real || '—'}</td>
         <td>${sapCell}</td>
@@ -913,7 +913,7 @@
           <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;width:100%;">
             <div title="${f}: ${c}" style="width:100%;background:var(--accent-2);border-radius:3px 3px 0 0;height:${pct}%;opacity:${c>0?0.85:0.15};"></div>
           </div>
-          <div style="font-size:9px;color:var(--text-dim);height:14px;line-height:14px;">${f.slice(5)}</div>
+          <div style="font-size:9px;color:var(--text-dim);height:14px;line-height:14px;">${f.slice(8)}/${f.slice(5,7)}</div>
         </div>`;
       }).join('')}
     </div>`;
