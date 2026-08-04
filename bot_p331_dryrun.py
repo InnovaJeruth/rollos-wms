@@ -119,9 +119,10 @@ def _cerrar_popup_si_existe(session):
     except Exception:
         pass
 
-    # Cerrar: primero btn[0] (Enter/OK), luego sendVKey(0), luego sendVKey(13)
+    # Cerrar: btn SPOP-OPTION1 = "Si" en dialogo "¿Desea grabar?", luego fallbacks
     cerrado = False
     for metodo in (
+        lambda: session.findById("wnd[1]/usr/btnSPOP-OPTION1").press(),
         lambda: session.findById("wnd[1]/tbar[0]/btn[0]").press(),
         lambda: session.findById("wnd[1]").sendVKey(0),
         lambda: session.findById("wnd[1]").sendVKey(13),
@@ -468,10 +469,16 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
         # Boton "Crear OA + Grabar movimiento de material" — OK_OIP_CREATE_POST_MAT_TO
         session.findById(TOOLBAR_ID).pressButton("OK_OIP_CREATE_POST_MAT_TO")
 
-        # SAP suele mostrar un popup de confirmacion con el numero de OAs creadas
+        # SAP puede tardar hasta 2s en mostrar el popup (confirmacion de OAs o "¿Desea grabar?")
+        time.sleep(2.0)
         msg_confirmacion = _cerrar_popup_si_existe(session)
         if msg_confirmacion:
             print(f"  [SAP] {msg_confirmacion}")
+        # Puede aparecer un segundo popup encadenado
+        time.sleep(0.5)
+        msg2 = _cerrar_popup_si_existe(session)
+        if msg2:
+            print(f"  [SAP] (popup 2) {msg2}")
 
         t_crear = time.perf_counter() - t2
         print(f"[OK] Ordenes de almacen creadas y grabadas en {t_crear:.2f}s.")

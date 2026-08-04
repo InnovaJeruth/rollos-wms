@@ -867,7 +867,7 @@
       movs.filter((m) => m.discrepancia && m.bin_sap && m.bin_real && m.bin_sap !== m.bin_real)
           .forEach((m) => {
             const lk = String(m.lote || '').trim() || m.lote;
-            if (!seenLotes.has(lk)) { seenLotes.add(lk); _malUbicados.push({ ...m, operario: op }); }
+            if (!seenLotes.has(lk)) { seenLotes.add(lk); _malUbicados.push({ ...m, operario: op, _fecha: sessionLike.fecha || '' }); }
           });
       movs.forEach(m => {
         if ((m.accion || '') !== 'regularizacion') {
