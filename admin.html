@@ -1039,7 +1039,10 @@
       html += `<div id="card-movimientos" class="card" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
           <div class="label-strong">Movimientos</div>
-          <button id="btn-mov-close" style="${btnSt}padding:2px 10px;font-size:18px;line-height:1;">&#215;</button>
+          <div style="display:flex;gap:6px;">
+            <button id="btn-mov-pendiente" style="${btnSt}font-size:11px;color:var(--accent-2);" title="Crear pendiente SAP con los mal ubicados filtrados">&#8594; Crear pendiente SAP</button>
+            <button id="btn-mov-close" style="${btnSt}padding:2px 10px;font-size:18px;line-height:1;">&#215;</button>
+          </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">
           <select id="mov-filter-tipo" style="${fSt}">
@@ -1104,6 +1107,49 @@
     document.getElementById('btn-mov-close')?.addEventListener('click', () => {
       const card = document.getElementById('card-movimientos');
       if (card) card.style.display = 'none';
+    });
+    document.getElementById('btn-mov-pendiente')?.addEventListener('click', async () => {
+      const malUb = _anomalias.filter((m) =>
+        m.tipo === 'mal_ubicado' &&
+        m.bin_sap && m.bin_real && m.bin_sap !== m.bin_real &&
+        !['CORTE','ENTRADA','SALIDA'].includes(String(m.bin_sap).toUpperCase())
+      );
+      if (!malUb.length) { flash('Sin mal ubicados procesables en la vista actual.', ''); return; }
+      if (!confirm(`Crear pendiente SAP con ${malUb.length} movimiento(s) mal ubicado(s)?\n\nOrigen: ubicacion SAP actual\nDestino: ubicacion fisica encontrada`)) return;
+      try {
+        const cfg = await WMS.loadConfig();
+        const now = new Date();
+        const fechaHoy = WMS.fechaISO(now);
+        const horaHoy  = WMS.horaISO(now);
+        const id = WMS.uuidv4();
+        const movs = malUb.map((m) => ({
+          lote:        m.lote,
+          producto:    m.producto    || '',
+          descripcion: m.descripcion || '',
+          bin_sap:     m.bin_sap,
+          bin_real:    m.bin_real,
+          bin_origen:  m.bin_sap,
+          bin_destino: m.bin_real,
+          cantidad:    m.cantidad    || '',
+          unidad:      m.unidad      || '',
+          accion:      'traslado_individual',
+          huerfano:    false,
+        }));
+        const pendiente = JSON.stringify({
+          schema:      'ejecutable_v1',
+          id,
+          operario:    'Admin-reenvio',
+          fecha:       fechaHoy,
+          hora_inicio: horaHoy,
+          hora_fin:    horaHoy,
+          movimientos: movs,
+        }, null, 2);
+        const path = `pendientes/reenvio_malub_${id.slice(0,8)}.json`;
+        await WMS.putGitHubFile(cfg, path, pendiente, null, `pendiente: reenvio ${malUb.length} mal-ubicados admin`);
+        flash(`✓ Pendiente creado en ${path} (${malUb.length} movimientos).`, 'ok');
+      } catch (e) {
+        flash('Error al crear pendiente: ' + e.message, 'err');
+      }
     });
 
     // Filtros de la tabla Movimientos

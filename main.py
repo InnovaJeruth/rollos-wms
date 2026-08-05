@@ -249,11 +249,11 @@ class WMSApp:
         )
         self.btn_reg.pack(fill="x", padx=28)
 
-        # Filtro: solo movimientos de hoy
-        chk_frame = tk.Frame(self.root, bg=BG)
-        chk_frame.pack(fill="x", padx=28, pady=(6, 0))
+        # Filtro + boton actualizar en la misma fila
+        row_frame = tk.Frame(self.root, bg=BG)
+        row_frame.pack(fill="x", padx=28, pady=(8, 0))
         self.chk_hoy = tk.Checkbutton(
-            chk_frame,
+            row_frame,
             text="Solo movimientos de hoy",
             variable=self._solo_hoy,
             font=("Segoe UI", 10),
@@ -264,17 +264,15 @@ class WMSApp:
             command=self._on_refresh,
         )
         self.chk_hoy.pack(side="left")
-
-        # Boton actualizar conteo
         self.btn_refresh = tk.Button(
-            self.root,
-            text="↻  Actualizar",
-            font=("Segoe UI", 10),
+            row_frame,
+            text="↻",
+            font=("Segoe UI", 11),
             bg=BG2, fg=MUTED, activebackground=SEP, activeforeground=WHITE,
-            relief="flat", bd=0, pady=6, cursor="hand2",
+            relief="flat", bd=0, padx=10, pady=3, cursor="hand2",
             command=self._on_refresh,
         )
-        self.btn_refresh.pack(fill="x", padx=28, pady=(2, 0))
+        self.btn_refresh.pack(side="right")
 
         # Canvas con rollos animados (oculto hasta que empieza una tarea)
         self.canvas = tk.Canvas(self.root, height=56, bg=BG, highlightthickness=0)
