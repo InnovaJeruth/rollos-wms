@@ -14,7 +14,7 @@ Flujo completo:
   1. Abre /SCWM/ADPROD y busca los lotes por seleccion multiple
   2. Llena la grilla (cantidad, tipo proceso P331, bin destino) por cada fila
   3. Valida con pressEnter y cierra popups SAP
-  4. Selecciona todas las filas y presiona "Crear OA + Grabar" (OK_OIP_CREATE_POST_MAT_TO)
+  4. Selecciona las filas llenadas y presiona "Crear OA + Grabar" (OK_OIP_CREATE_POST_MAT_TO)
   5. La sesion de SAP queda abierta para revision (NO se cierra)
 
 Uso:
@@ -65,6 +65,10 @@ PROCESO_P331    = "P331"
 COL_LOTE        = "CHARG"   # Lote
 COL_BIN_ORIGEN  = "VLPLA"   # Ubic. procedencia
 COL_DISP        = "AVAIL_QUAN"  # Cantidad disponible (auto-relleno si JSON no trae cantidad)
+
+# Maximo de lotes por busqueda ADPROD — la grilla tiene un limite de display;
+# dividir en batches evita que SAP devuelva menos filas de las buscadas.
+BATCH_SIZE = 25
 
 
 # =========================================================================
@@ -310,36 +314,26 @@ def imprimir_diagnostico_columnas(grid):
 
 
 # =========================================================================
-# Flujo principal
+# Procesamiento de un batch (un ciclo ADPROD completo para un subconjunto
+# de lotes). Separa la logica de un batch de la iteracion en procesar_pendiente.
 # =========================================================================
-def procesar_pendiente(ruta_json, solo_batch_id=None):
-    movimientos = cargar_movimientos(ruta_json, solo_batch_id)
-    if not movimientos:
-        print(f"[AVISO] No hay movimientos ejecutables en {ruta_json}"
-              f"{' para el batch ' + solo_batch_id if solo_batch_id else ''}.")
-        return
+def _procesar_un_batch(session, lotes_raw_batch, esperados_por_lote_batch):
+    """
+    Ejecuta busqueda + llenado de grilla + creacion de OAs para un subconjunto
+    de lotes en una sesion ADPROD.
 
-    # Agrupar los movimientos esperados por lote. Normalmente hay uno solo
-    # por lote, pero si el mismo lote aparece 2 veces en el JSON (o SAP
-    # tiene el stock partido en 2 bines), se desambigua mas abajo por bin_origen.
-    esperados_por_lote = {}
-    for mov in movimientos:
-        # Normalizar igual que hace el grid: lstrip("0") para que "0000017164" == "17164"
-        lk = mov["lote"].strip().upper()
-        lk = lk.lstrip("0") or lk
-        esperados_por_lote.setdefault(lk, []).append(mov)
+    lotes_raw_batch       — list de lotes en formato original (para la busqueda SAP)
+    esperados_por_lote_batch — dict lote_norm -> [mov, ...] del subconjunto
 
-    # Lotes para la busqueda SAP: numericos con ceros (zfill 10), resto sin cambio
-    lotes_raw = sorted(set(mov["lote"].strip().upper() for mov in movimientos))
-    lotes = sorted(esperados_por_lote.keys())
-    print(f"[INFO] {len(movimientos)} movimiento(s) / {len(lotes)} lote(s) unico(s) "
-          f"a preparar desde {ruta_json}")
+    Retorna dict con claves: llenados, discrepancias, ya_en_destino,
+                             t_busqueda, t_matching, t_crear
+    """
+    lotes_batch_norm = sorted(esperados_por_lote_batch.keys())
+    llenados, discrepancias, ya_en_destino = [], [], []
 
-    session = obtener_sesion_sap()
-
-    print(f"[INFO] Buscando los {len(lotes_raw)} lote(s) en /SCWM/ADPROD (seleccion multiple)...")
+    print(f"[INFO] Buscando {len(lotes_raw_batch)} lote(s) en /SCWM/ADPROD (seleccion multiple)...")
     t0 = time.perf_counter()
-    grid = buscar_lotes_multiple(session, lotes_raw)
+    grid = buscar_lotes_multiple(session, lotes_raw_batch)
     t_busqueda = time.perf_counter() - t0
 
     columnas = list(grid.ColumnOrder)
@@ -377,18 +371,17 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
     except Exception:
         print(f"[INFO] fillColumn no soportado; {COL_TIPO_PROC} se llenara por fila.")
 
-    llenados, discrepancias, ya_en_destino = [], [], []
     lotes_identificados = set()
 
     t1 = time.perf_counter()
     for fila, (lote_de_fila, bin_de_fila, avail_quan_cache) in sorted(filas_cache.items()):
 
-        if lote_de_fila not in esperados_por_lote:
+        if lote_de_fila not in esperados_por_lote_batch:
             print(f"  [AVISO] Fila {fila}: lote '{lote_de_fila}' no esperado. Se ignora.")
             continue
 
         lotes_identificados.add(lote_de_fila)
-        candidatos = esperados_por_lote[lote_de_fila]
+        candidatos = esperados_por_lote_batch[lote_de_fila]
 
         # Elegir movimiento correcto dentro del lote (normalmente solo uno;
         # si hay varios, se desambigua por bin_origen).
@@ -430,9 +423,10 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
         if not _col_proc_prefilled:
             grid.modifyCell(fila, COL_TIPO_PROC, PROCESO_P331)
         grid.modifyCell(fila, COL_BIN_DESTINO, mov["bin_destino"])
-        # NO pressEnter() por fila — evita el popup de validacion por cada registro.
-        # SAP acepta modifyCell sin confirmacion inmediata; la validacion ocurre
-        # cuando el usuario presiona Crear+Grabar al final.
+        # Patron del macro SAP grabado: confirmar la celda editada con
+        # setCurrentCell + clearSelection para que SAP registre el valor.
+        grid.setCurrentCell(fila, COL_BIN_DESTINO)
+        grid.clearSelection()
 
         origen_cantidad = "JSON" if mov["cantidad"] else "SAP(AVAIL_QUAN)"
         aviso_cantidad = "" if cantidad else "  [!] Cantidad no obtenida — completar a mano."
@@ -450,16 +444,16 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
     _cerrar_popup_si_existe(session)
 
     # Lotes que esperabamos pero SAP nunca devolvio en ninguna fila
-    for lote in set(lotes) - lotes_identificados:
-        for mov in esperados_por_lote[lote]:
+    for lote in set(lotes_batch_norm) - lotes_identificados:
+        for mov in esperados_por_lote_batch[lote]:
             print(f"  [DISCREPANCIA] Lote {lote}: SAP no lo devolvio en la busqueda "
                   f"(¿ya fue movido, no existe, o esta en otro almacen?)")
             discrepancias.append({**mov, "motivo": "lote_no_encontrado_en_sap"})
 
     # =====================================================================
     # CREAR Y GRABAR ORDENES DE ALMACEN P331
-    # Equivalente al selectColumn (x todas las columnas) + pressButton del
-    # macro grabado por el usuario en UiPath / SAP GUI VBScript.
+    # Solo se seleccionan las filas que fueron llenadas correctamente,
+    # evitando procesar filas con NLPLA vacio (discrepancias).
     # =====================================================================
     t_crear = 0.0
     if llenados:
@@ -469,18 +463,23 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
             for m in sin_cantidad:
                 print(f"      - Lote {m['lote']} (fila {m['fila_sap']})")
 
-        print(f"\n[INFO] Seleccionando filas y creando {len(llenados)} orden(es) de almacen P331...")
+        print(f"\n[INFO] Seleccionando {len(llenados)} fila(s) y creando ordenes de almacen P331...")
         t2 = time.perf_counter()
 
-        # Seleccionar todas las filas de la grilla (equivalente al selectColumn multiple del VBScript)
+        # Seleccionar solo las filas llenadas (no todas — evita intentar crear
+        # OAs para filas sin NLPLA, lo que genera popups de error innecesarios).
+        filas_llenadas = [str(m["fila_sap"]) for m in llenados]
         try:
-            grid.selectAll()
-        except Exception:
-            # Fallback: asignar rango de filas directamente
+            grid.selectedRows = ",".join(filas_llenadas)
+        except Exception as e:
+            print(f"  [AVISO] selectedRows fallido ({e}). Usando selectAll como fallback.")
             try:
-                grid.selectedRows = ",".join(str(i) for i in range(total_filas))
-            except Exception as e:
-                print(f"  [AVISO] No se pudo seleccionar filas automaticamente: {e}")
+                grid.selectAll()
+            except Exception:
+                try:
+                    grid.selectedRows = ",".join(str(i) for i in range(total_filas))
+                except Exception as e2:
+                    print(f"  [AVISO] No se pudo seleccionar filas: {e2}")
 
         # Boton "Crear OA + Grabar movimiento de material" — OK_OIP_CREATE_POST_MAT_TO
         session.findById(TOOLBAR_ID).pressButton("OK_OIP_CREATE_POST_MAT_TO")
@@ -501,34 +500,116 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
     else:
         print("\n[AVISO] Sin filas llenadas — no se creo ninguna orden de almacen.")
 
+    return {
+        "llenados":      llenados,
+        "discrepancias": discrepancias,
+        "ya_en_destino": ya_en_destino,
+        "t_busqueda":    t_busqueda,
+        "t_matching":    t_matching_y_escritura,
+        "t_crear":       t_crear,
+        "total_filas":   total_filas,
+        "n_columnas":    len(columnas),
+    }
+
+
+# =========================================================================
+# Flujo principal
+# =========================================================================
+def procesar_pendiente(ruta_json, solo_batch_id=None):
+    movimientos = cargar_movimientos(ruta_json, solo_batch_id)
+    if not movimientos:
+        print(f"[AVISO] No hay movimientos ejecutables en {ruta_json}"
+              f"{' para el batch ' + solo_batch_id if solo_batch_id else ''}.")
+        return
+
+    # Agrupar los movimientos esperados por lote. Normalmente hay uno solo
+    # por lote, pero si el mismo lote aparece 2 veces en el JSON (o SAP
+    # tiene el stock partido en 2 bines), se desambigua mas abajo por bin_origen.
+    esperados_por_lote = {}
+    for mov in movimientos:
+        # Normalizar igual que hace el grid: lstrip("0") para que "0000017164" == "17164"
+        lk = mov["lote"].strip().upper()
+        lk = lk.lstrip("0") or lk
+        esperados_por_lote.setdefault(lk, []).append(mov)
+
+    # Lotes para la busqueda SAP: numericos con ceros (zfill 10), resto sin cambio.
+    # lotes_raw: formato original del JSON (para pegar en SAP)
+    # lotes_norm: claves del dict esperados_por_lote (normalizadas)
+    lotes_raw  = sorted(set(mov["lote"].strip().upper() for mov in movimientos))
+    lotes_norm = sorted(esperados_por_lote.keys())
+    print(f"[INFO] {len(movimientos)} movimiento(s) / {len(lotes_norm)} lote(s) unico(s) "
+          f"a preparar desde {ruta_json}")
+
+    # Mapping raw -> norm para construir subsets por batch
+    raw_to_norm = {}
+    for lr in lotes_raw:
+        norm = lr.lstrip("0") or lr
+        raw_to_norm[lr] = norm
+
+    session = obtener_sesion_sap()
+
+    # Dividir en batches para respetar el limite de display de la grilla ADPROD.
+    # Con mas de ~30 lotes SAP puede devolver menos filas de las buscadas.
+    batches_raw = [lotes_raw[i:i + BATCH_SIZE] for i in range(0, len(lotes_raw), BATCH_SIZE)]
+    n_batches = len(batches_raw)
+    if n_batches > 1:
+        print(f"[INFO] {len(lotes_raw)} lote(s) divididos en {n_batches} batch(es) de max {BATCH_SIZE}.")
+
+    all_llenados, all_discrepancias, all_ya_en_destino = [], [], []
+    t_total_busqueda = t_total_matching = t_total_crear = 0.0
+    total_filas_total = 0
+
+    for batch_idx, batch_raw in enumerate(batches_raw):
+        if n_batches > 1:
+            print(f"\n[INFO] ===== Batch {batch_idx + 1}/{n_batches} "
+                  f"({len(batch_raw)} lotes) =====")
+
+        # Construir subset de esperados_por_lote para este batch
+        batch_norm_keys = {raw_to_norm[lr] for lr in batch_raw}
+        esperados_batch = {k: v for k, v in esperados_por_lote.items()
+                           if k in batch_norm_keys}
+
+        res = _procesar_un_batch(session, batch_raw, esperados_batch)
+
+        all_llenados.extend(res["llenados"])
+        all_discrepancias.extend(res["discrepancias"])
+        all_ya_en_destino.extend(res["ya_en_destino"])
+        t_total_busqueda += res["t_busqueda"]
+        t_total_matching += res["t_matching"]
+        t_total_crear    += res["t_crear"]
+        total_filas_total += res["total_filas"]
+
     # =====================================================================
-    # RESUMEN
+    # RESUMEN GLOBAL
     # =====================================================================
     print("\n" + "=" * 70)
     print(f"RESUMEN — {ruta_json}")
     print("=" * 70)
-    print(f"  Tiempo busqueda en SAP        : {t_busqueda:.2f}s")
-    print(f"  Tiempo matching + escritura   : {t_matching_y_escritura:.2f}s "
-          f"({total_filas} fila(s) x {len(columnas)} columna(s) escaneadas)")
-    if llenados:
-        print(f"  Tiempo creacion OAs           : {t_crear:.2f}s")
-    print(f"  Tiempo total                  : {t_busqueda + t_matching_y_escritura + t_crear:.2f}s")
-    print(f"  Ordenes de almacen creadas   : {len(llenados)}")
-    print(f"  Ya en destino (sin accion)   : {len(ya_en_destino)}")
-    print(f"  Discrepancias (no procesadas): {len(discrepancias)}")
-    if ya_en_destino:
-        print(f"\n  [INFO] {len(ya_en_destino)} rollo(s) ya estaban en la ubicacion destino")
+    if n_batches > 1:
+        print(f"  Batches ejecutados            : {n_batches}")
+    print(f"  Tiempo busqueda en SAP        : {t_total_busqueda:.2f}s")
+    print(f"  Tiempo matching + escritura   : {t_total_matching:.2f}s "
+          f"({total_filas_total} fila(s) totales)")
+    if all_llenados:
+        print(f"  Tiempo creacion OAs           : {t_total_crear:.2f}s")
+    print(f"  Tiempo total                  : {t_total_busqueda + t_total_matching + t_total_crear:.2f}s")
+    print(f"  Ordenes de almacen creadas   : {len(all_llenados)}")
+    print(f"  Ya en destino (sin accion)   : {len(all_ya_en_destino)}")
+    print(f"  Discrepancias (no procesadas): {len(all_discrepancias)}")
+    if all_ya_en_destino:
+        print(f"\n  [INFO] {len(all_ya_en_destino)} rollo(s) ya estaban en la ubicacion destino")
         print(f"         en SAP — el inventario PWA estaba desactualizado para esos lotes.")
         print(f"         Actualizar el inventario en el admin para que no aparezcan")
         print(f"         como mal ubicados en el proximo escaneo.")
-    if discrepancias:
+    if all_discrepancias:
         print("\n  Detalle de discrepancias:")
-        for d in discrepancias:
+        for d in all_discrepancias:
             extra = f" | SAP actual: '{d.get('bin_sap_actual', '?')}'" if d.get("bin_sap_actual") else ""
             print(f"    - Lote {d['lote']}: {d['motivo']}{extra}")
 
     print("\nLa sesion de SAP queda ABIERTA para revision.")
-    return {"llenados": llenados, "discrepancias": discrepancias, "ya_en_destino": ya_en_destino}
+    return {"llenados": all_llenados, "discrepancias": all_discrepancias,
+            "ya_en_destino": all_ya_en_destino}
 
 
 def _elegir_json_por_defecto():
