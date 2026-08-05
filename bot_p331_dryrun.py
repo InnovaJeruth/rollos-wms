@@ -354,7 +354,7 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
     except Exception:
         print(f"[INFO] fillColumn no soportado; {COL_TIPO_PROC} se llenara por fila.")
 
-    llenados, discrepancias = [], []
+    llenados, discrepancias, ya_en_destino = [], [], []
     lotes_identificados = set()
 
     t1 = time.perf_counter()
@@ -382,9 +382,16 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
         if len(candidatos) == 1:
             mov = candidatos[0]
             if bin_de_fila != mov["bin_origen"].upper():
-                print(f"  [DISCREPANCIA] Lote {lote_de_fila}: bin_origen SAP='{bin_de_fila}' "
-                      f"!= esperado='{mov['bin_origen']}'.")
-                discrepancias.append({**mov, "motivo": "bin_origen_no_coincide"})
+                if mov["bin_destino"] and bin_de_fila == mov["bin_destino"].upper():
+                    print(f"  [YA OK] Lote {lote_de_fila}: ya en destino '{bin_de_fila}' "
+                          f"(inventario PWA desactualizado, sin accion).")
+                    ya_en_destino.append({**mov, "fila_sap": fila, "motivo": "ya_en_destino"})
+                else:
+                    print(f"  [DISCREPANCIA] Lote {lote_de_fila}: bin_origen SAP='{bin_de_fila}' "
+                          f"!= esperado='{mov['bin_origen']}' "
+                          f"(destino esperado: '{mov['bin_destino']}').")
+                    discrepancias.append({**mov, "motivo": "bin_origen_no_coincide",
+                                          "bin_sap_actual": bin_de_fila})
                 continue
         else:
             coincidencias = [m for m in candidatos if bin_de_fila == m["bin_origen"].upper()]
@@ -498,14 +505,21 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
         print(f"  Tiempo creacion OAs           : {t_crear:.2f}s")
     print(f"  Tiempo total                  : {t_busqueda + t_matching_y_escritura + t_crear:.2f}s")
     print(f"  Ordenes de almacen creadas   : {len(llenados)}")
+    print(f"  Ya en destino (sin accion)   : {len(ya_en_destino)}")
     print(f"  Discrepancias (no procesadas): {len(discrepancias)}")
+    if ya_en_destino:
+        print(f"\n  [INFO] {len(ya_en_destino)} rollo(s) ya estaban en la ubicacion destino")
+        print(f"         en SAP — el inventario PWA estaba desactualizado para esos lotes.")
+        print(f"         Actualizar el inventario en el admin para que no aparezcan")
+        print(f"         como mal ubicados en el proximo escaneo.")
     if discrepancias:
         print("\n  Detalle de discrepancias:")
         for d in discrepancias:
-            print(f"    - Lote {d['lote']}: {d['motivo']}")
+            extra = f" | SAP actual: '{d.get('bin_sap_actual', '?')}'" if d.get("bin_sap_actual") else ""
+            print(f"    - Lote {d['lote']}: {d['motivo']}{extra}")
 
     print("\nLa sesion de SAP queda ABIERTA para revision.")
-    return {"llenados": llenados, "discrepancias": discrepancias}
+    return {"llenados": llenados, "discrepancias": discrepancias, "ya_en_destino": ya_en_destino}
 
 
 def _elegir_json_por_defecto():

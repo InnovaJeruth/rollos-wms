@@ -174,12 +174,17 @@ def run_explicit(unicos, por_archivo, datos_por_archivo=None, log_callback=None)
 
     n_ok    = len(resultado.get("llenados", []))
     n_err   = len(resultado.get("discrepancias", []))
+    n_ya_ok = len(resultado.get("ya_en_destino", []))
     carpeta = "procesados" if n_err == 0 else "discrepancias"
 
-    if n_err == 0:
+    if n_err == 0 and n_ya_ok == 0:
         log(f"OK — {n_ok} rollo(s) registrado(s). Archivando {len(por_archivo)} archivo(s)...")
+    elif n_err == 0:
+        log(f"OK — {n_ok} registrado(s), {n_ya_ok} ya estaban en destino "
+            f"(inventario desactualizado). Archivando {len(por_archivo)} archivo(s)...")
     else:
-        log(f"AVISO — {n_ok} OK, {n_err} discrepancia(s). Archivando en discrepancias/...")
+        log(f"AVISO — {n_ok} OK, {n_ya_ok} ya en destino, {n_err} discrepancia(s). "
+            f"Archivando en discrepancias/...")
 
     errores = 0
     for path, sha in por_archivo.items():
@@ -219,12 +224,14 @@ def run_explicit(unicos, por_archivo, datos_por_archivo=None, log_callback=None)
             errores += 1
             log(f"Error archivando {path}: {e}")
 
-    log(f"Fin: {n_ok} rollo(s) registrado(s).")
+    ya_ok_txt = f", {n_ya_ok} ya en destino" if n_ya_ok else ""
+    log(f"Fin: {n_ok} rollo(s) registrado(s){ya_ok_txt}.")
     return {
         "procesados":        len(por_archivo),
         "con_discrepancias": 1 if n_err > 0 else 0,
         "errores":           errores,
         "total_llenados":    n_ok,
+        "ya_en_destino":     n_ya_ok,
     }
 
 

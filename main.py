@@ -442,17 +442,19 @@ class WMSApp:
                     unicos, por_archivo, datos_por_archivo,
                     log_callback=lambda m: logging.info(m),
                 )
-            d = resultado["con_discrepancias"]
-            e = resultado["errores"]
-            r = resultado.get("total_llenados", resultado["procesados"])
+            d  = resultado["con_discrepancias"]
+            e  = resultado["errores"]
+            r  = resultado.get("total_llenados", resultado["procesados"])
+            ya = resultado.get("ya_en_destino", 0)
+            ya_txt = f"  {ya} ya estaban en destino (inventario desactualizado)." if ya else ""
             if e > 0:
                 self._queue.put(("err", "Ocurrio un error. Avisa al encargado."))
             elif d > 0:
                 self._queue.put(("warn",
-                    f"✓ {r} rollo(s) registrado(s).  {d} archivo(s) con diferencias — revisar SAP."))
+                    f"✓ {r} rollo(s) registrado(s).  {d} archivo(s) con diferencias — revisar SAP.{ya_txt}"))
             else:
                 self._queue.put(("ok",
-                    f"✓ {r} rollo(s) registrado(s) correctamente."))
+                    f"✓ {r} rollo(s) registrado(s) correctamente.{ya_txt}"))
         except Exception as e:
             logging.exception("Error al registrar movimientos")
             self._queue.put(("err", "Ocurrio un error. Avisa al encargado."))
