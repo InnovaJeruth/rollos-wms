@@ -720,9 +720,11 @@
     const slice = filtered.slice(start, start + PAGE);
     const modoLabel = { traslado_individual: 'Individual', traslado_masivo: 'Masivo', regularizacion: 'Regular.' };
     tbody.innerHTML = slice.map((m) => {
-      const tipoBadge = m.tipo === 'mal_ubicado'
-        ? `<span style="color:var(--warn);font-weight:600;">Mal ubicado</span>`
-        : `<span style="color:var(--error);font-weight:600;">Sin registro SAP</span>`;
+      const tipoBadge =
+        m.tipo === 'mal_ubicado'   ? `<span style="color:var(--warn);font-weight:600;">Mal ubicado</span>` :
+        m.tipo === 'sin_registro'  ? `<span style="color:var(--error);font-weight:600;">Sin registro SAP</span>` :
+        m.tipo === 'procesado_sap' ? `<span style="color:var(--accent);font-weight:600;">Procesado SAP</span>` :
+                                     `<span style="color:var(--text-dim);">Normal</span>`;
       const modo = modoLabel[m.accion] || m.accion || '?';
       const lraw = String(m.lote || '').trim().toUpperCase();
       const res  = _procesadosLoteMap[lraw];
@@ -937,10 +939,20 @@
       </div>`;
     }).join('');
 
-    // ── Tabla unificada de anomalias ──────────────────────────────────────────
+    // ── Tabla unificada de movimientos ───────────────────────────────────────
+    const _procesadosSet = new Set(Object.keys(_procesadosLoteMap).map(l => l.toUpperCase()));
+    const _malUbLotes    = new Set(_malUbicados.map(m => String(m.lote || '').trim().toUpperCase()));
     _anomalias = [
       ..._malUbicados.map((m) => ({ ...m, tipo: 'mal_ubicado', _operario: m.operario || m._operario || '?' })),
-      ..._dashboardMovs.filter((m) => m.huerfano === true).map((m) => ({ ...m, tipo: 'sin_registro' }))
+      ..._dashboardMovs.filter((m) => m.huerfano === true).map((m) => ({ ...m, tipo: 'sin_registro' })),
+      ..._dashboardMovs.filter((m) => {
+        const lote = String(m.lote || '').trim().toUpperCase();
+        return !m.huerfano && !_malUbLotes.has(lote) && _procesadosSet.has(lote);
+      }).map((m) => ({ ...m, tipo: 'procesado_sap' })),
+      ..._dashboardMovs.filter((m) => {
+        const lote = String(m.lote || '').trim().toUpperCase();
+        return !m.huerfano && !_malUbLotes.has(lote) && !_procesadosSet.has(lote);
+      }).map((m) => ({ ...m, tipo: 'normal' })),
     ].sort((a, b) => (b._fecha || '').localeCompare(a._fecha || ''));
     _anomaliaPage = 0;
     _anomaliaFiltroTipo = '';
@@ -982,11 +994,11 @@
     // KPI grid — 9 cards, 3 por fila en desktop
     html += '<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">';
     html += `<div class="kpi-card"><div class="label-strong">Turnos</div><div class="big-value">${turnosCount}</div></div>`;
-    html += `<div class="kpi-card"><div class="label-strong">Movs totales</div><div class="big-value">${totMovs}</div></div>`;
+    html += `<div class="kpi-card" id="kpi-movs-tot" style="cursor:pointer;" title="Ver todos los movimientos"><div class="label-strong">Movs totales</div><div class="big-value">${totMovs}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Listos para SAP</div><div class="big-value" style="color:var(--accent);">${totEjec}</div></div>`;
     html += `<div class="kpi-card" id="kpi-mal-ub" style="cursor:pointer;" title="Ver movimientos mal ubicados"><div class="label-strong">Mal ubicados</div><div class="big-value" style="color:var(--warn);">${_malUbicados.length}</div></div>`;
     html += `<div class="kpi-card" id="kpi-sin-reg" style="cursor:pointer;" title="Ver movimientos sin registro SAP"><div class="label-strong">Sin registro SAP</div><div class="big-value" style="color:var(--error);">${totHuerf}</div></div>`;
-    html += `<div class="kpi-card"><div class="label-strong">Procesados SAP</div><div class="big-value" style="color:var(--accent);">${totEnviados}</div></div>`;
+    html += `<div class="kpi-card" id="kpi-proc-sap" style="cursor:pointer;" title="Ver movimientos procesados en SAP"><div class="label-strong">Procesados SAP</div><div class="big-value" style="color:var(--accent);">${totEnviados}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Tiempo total</div><div class="big-value">${fmtSeg(totSeg)}</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Prom seg/mov</div><div class="big-value">${segPorMov}s</div></div>`;
     html += `<div class="kpi-card"><div class="label-strong">Prom movs/turno</div><div class="big-value">${movsPorTurno}</div></div>`;
@@ -1034,6 +1046,8 @@
             <option value="">Todos los tipos</option>
             <option value="mal_ubicado">Mal ubicado</option>
             <option value="sin_registro">Sin registro SAP</option>
+            <option value="procesado_sap">Procesado SAP</option>
+            <option value="normal">Normal / Correcto</option>
           </select>
           <select id="mov-filter-op" style="${fSt}">
             <option value="">Todos los operarios</option>
@@ -1083,8 +1097,10 @@
       renderMovTable();
       card.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
-    document.getElementById('kpi-mal-ub')?.addEventListener('click', () => _showMovTable('mal_ubicado'));
-    document.getElementById('kpi-sin-reg')?.addEventListener('click', () => _showMovTable('sin_registro'));
+    document.getElementById('kpi-movs-tot')?.addEventListener('click', () => _showMovTable(''));
+    document.getElementById('kpi-proc-sap')?.addEventListener('click', () => _showMovTable('procesado_sap'));
+    document.getElementById('kpi-mal-ub')?.addEventListener('click',   () => _showMovTable('mal_ubicado'));
+    document.getElementById('kpi-sin-reg')?.addEventListener('click',  () => _showMovTable('sin_registro'));
     document.getElementById('btn-mov-close')?.addEventListener('click', () => {
       const card = document.getElementById('card-movimientos');
       if (card) card.style.display = 'none';
