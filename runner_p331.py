@@ -229,6 +229,7 @@ def run_explicit(unicos, por_archivo, datos_por_archivo=None, log_callback=None)
     return {
         "procesados":        len(por_archivo),
         "con_discrepancias": 1 if n_err > 0 else 0,
+        "n_discrepancias":   n_err,
         "errores":           errores,
         "total_llenados":    n_ok,
         "ya_en_destino":     n_ya_ok,
