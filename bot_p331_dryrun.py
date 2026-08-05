@@ -343,8 +343,26 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
 
     imprimir_diagnostico_columnas(grid)
 
+    # LEER todos los valores del grid ANTES de cualquier modificacion.
+    # fillColumn(PROCTY, P331) provoca que SAP recalcule internamente y puede
+    # sobreescribir VLPLA con un bin de destino calculado, haciendo que la
+    # lectura posterior devuelva valores incorrectos.
+    filas_cache = {}   # fila -> (lote_de_fila, bin_de_fila, avail_quan)
+    for fila in range(total_filas):
+        try:
+            lote_raw     = grid.GetCellValue(fila, COL_LOTE).strip().upper()
+            lote_de_fila = lote_raw.lstrip("0") or lote_raw
+            bin_de_fila  = grid.GetCellValue(fila, COL_BIN_ORIGEN).strip().upper()
+            try:
+                avail_quan = grid.GetCellValue(fila, COL_DISP).strip()
+            except Exception:
+                avail_quan = ""
+            filas_cache[fila] = (lote_de_fila, bin_de_fila, avail_quan)
+        except Exception as e:
+            print(f"  [AVISO] Fila {fila}: no se pudo leer CHARG/VLPLA ({e}). Se ignora.")
+
     # Intentar llenar la columna PROCTY completa con P331 de una sola vez.
-    # Algunos grids SAP soportan fillColumn; si no, se llenara fila a fila abajo.
+    # IMPORTANTE: hacerlo DESPUES de leer el cache para no corromper VLPLA.
     _col_proc_prefilled = False
     try:
         grid.selectedRows = f"0,{total_filas - 1}" if total_filas > 1 else "0"
@@ -358,17 +376,7 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
     lotes_identificados = set()
 
     t1 = time.perf_counter()
-    for fila in range(total_filas):
-        # Lectura directa por nombre tecnico confirmado (CHARG / VLPLA).
-        # 2 lecturas por fila en vez de 49 — ~12x mas rapido que el scan completo.
-        try:
-            lote_raw     = grid.GetCellValue(fila, COL_LOTE).strip().upper()
-            # SAP devuelve CHARG con ceros ("0000018113"); normalizamos igual que la PWA
-            lote_de_fila = lote_raw.lstrip("0") or lote_raw
-            bin_de_fila  = grid.GetCellValue(fila, COL_BIN_ORIGEN).strip().upper()
-        except Exception as e:
-            print(f"  [AVISO] Fila {fila}: no se pudo leer CHARG/VLPLA ({e}). Se ignora.")
-            continue
+    for fila, (lote_de_fila, bin_de_fila, avail_quan_cache) in sorted(filas_cache.items()):
 
         if lote_de_fila not in esperados_por_lote:
             print(f"  [AVISO] Fila {fila}: lote '{lote_de_fila}' no esperado. Se ignora.")
@@ -406,14 +414,10 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
                 continue
             mov = coincidencias[0]
 
-        # Cantidad: usar la del JSON si viene, si no leer AVAIL_QUAN del grid
-        # (mover todo el stock disponible de esa ubicacion).
+        # Cantidad: usar la del JSON si viene, si no usar el valor cacheado de AVAIL_QUAN.
         cantidad = mov["cantidad"]
         if not cantidad:
-            try:
-                cantidad = grid.GetCellValue(fila, COL_DISP).strip()
-            except Exception:
-                cantidad = ""
+            cantidad = avail_quan_cache
 
         cantidad_sap = _formatear_cantidad_sap(cantidad)
         if cantidad_sap:
