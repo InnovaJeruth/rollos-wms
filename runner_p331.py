@@ -16,11 +16,14 @@ from bot_p331_dryrun import procesar_pendiente
 
 # ── Consolidacion cross-file ──────────────────────────────────────────────────
 
-def consolidar_movimientos(archivos):
+def consolidar_movimientos(archivos, desde=None):
     """
     Descarga todos los JSONs de pendientes y consolida movimientos:
     - Elimina duplicados (mismo lote + mismo destino)
     - Detecta conflictos (mismo lote, destinos distintos)
+
+    desde: str opcional "YYYY-MM-DD". Si se indica, se ignoran archivos cuya
+           fecha de sesion sea anterior a ese dia (para evitar rollos obsoletos).
 
     Retorna:
       unicos          — list de {'mov', 'path', 'sha', 'operario', 'bin_destino', 'timestamp', 'lote_norm'}
@@ -31,6 +34,7 @@ def consolidar_movimientos(archivos):
     por_lote = defaultdict(list)
     por_archivo = {}
     datos_por_archivo = {}
+    omitidos_por_fecha = 0
 
     for item in archivos:
         path = item["path"]
@@ -40,6 +44,15 @@ def consolidar_movimientos(archivos):
         try:
             data     = gh.descargar_json(path)
             datos_por_archivo[path] = data
+
+            # Filtro por fecha: omitir archivos de sesiones anteriores a `desde`
+            if desde:
+                fecha_archivo = str(data.get("fecha") or "")[:10]
+                if fecha_archivo and fecha_archivo < desde:
+                    omitidos_por_fecha += 1
+                    logging.info(f"Omitido por fecha ({fecha_archivo} < {desde}): {path}")
+                    continue
+
             operario = data.get("operario", "?")
             movs     = data.get("movimientos", [])
 
@@ -67,6 +80,9 @@ def consolidar_movimientos(archivos):
                 })
         except Exception as e:
             logging.warning(f"Error leyendo {path}: {e}")
+
+    if omitidos_por_fecha:
+        logging.info(f"Filtro fecha: {omitidos_por_fecha} archivo(s) omitido(s) (anteriores a {desde}).")
 
     unicos     = []
     conflictos = []
@@ -214,11 +230,13 @@ def run_explicit(unicos, por_archivo, datos_por_archivo=None, log_callback=None)
 
 # ── Ejecucion clasica por archivo (sin conflicts) ─────────────────────────────
 
-def run_all(log_callback=None):
+def run_all(log_callback=None, desde=None):
     """
     Itera todos los JSONs en pendientes/, los procesa en SAP y los archiva.
     Usa consolidar_movimientos para dedup cross-file. Si hay conflictos los omite
     (usar run_explicit cuando el admin ya los resolvio en el GUI).
+
+    desde: str "YYYY-MM-DD" opcional — ignora sesiones anteriores a esa fecha.
     """
     def log(msg):
         logging.info(msg)
@@ -230,8 +248,8 @@ def run_all(log_callback=None):
         log("Sin movimientos pendientes en GitHub.")
         return {"procesados": 0, "con_discrepancias": 0, "errores": 0, "total_llenados": 0}
 
-    log(f"{len(pendientes)} archivo(s) en pendientes/ — consolidando...")
-    unicos, conflictos, por_archivo, datos_por_archivo = consolidar_movimientos(pendientes)
+    log(f"{len(pendientes)} archivo(s) en pendientes/ — consolidando{' (desde ' + desde + ')' if desde else ''}...")
+    unicos, conflictos, por_archivo, datos_por_archivo = consolidar_movimientos(pendientes, desde=desde)
 
     if conflictos:
         lotes = ", ".join(c["lote"] for c in conflictos)

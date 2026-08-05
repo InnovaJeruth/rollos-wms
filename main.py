@@ -207,6 +207,7 @@ class WMSApp:
         self._anim_x = -90.0
         self._anim_id = None
         self._pendientes = 0
+        self._solo_hoy = tk.BooleanVar(value=False)
 
         # Datos de la ultima consolidacion (unicos, conflictos, por_archivo, datos_por_archivo)
         self._pending_data = None
@@ -248,6 +249,22 @@ class WMSApp:
         )
         self.btn_reg.pack(fill="x", padx=28)
 
+        # Filtro: solo movimientos de hoy
+        chk_frame = tk.Frame(self.root, bg=BG)
+        chk_frame.pack(fill="x", padx=28, pady=(6, 0))
+        self.chk_hoy = tk.Checkbutton(
+            chk_frame,
+            text="Solo movimientos de hoy",
+            variable=self._solo_hoy,
+            font=("Segoe UI", 10),
+            bg=BG, fg=MUTED,
+            activebackground=BG, activeforeground=WHITE,
+            selectcolor=BG2,
+            cursor="hand2",
+            command=self._on_refresh,
+        )
+        self.chk_hoy.pack(side="left")
+
         # Boton actualizar conteo
         self.btn_refresh = tk.Button(
             self.root,
@@ -257,7 +274,7 @@ class WMSApp:
             relief="flat", bd=0, pady=6, cursor="hand2",
             command=self._on_refresh,
         )
-        self.btn_refresh.pack(fill="x", padx=28, pady=(6, 0))
+        self.btn_refresh.pack(fill="x", padx=28, pady=(2, 0))
 
         # Canvas con rollos animados (oculto hasta que empieza una tarea)
         self.canvas = tk.Canvas(self.root, height=56, bg=BG, highlightthickness=0)
@@ -450,16 +467,17 @@ class WMSApp:
 
     def _fetch_count(self):
         try:
+            desde = datetime.date.today().isoformat() if self._solo_hoy.get() else None
             archivos = gh.listar_pendientes()
             if not archivos:
                 self._queue.put(("count_data", (0, 0, None)))
                 return
 
-            unicos, conflictos, por_archivo, datos_por_archivo = runner_p331.consolidar_movimientos(archivos)
+            unicos, conflictos, por_archivo, datos_por_archivo = runner_p331.consolidar_movimientos(archivos, desde=desde)
             total = len(unicos) + len(conflictos)  # conflictos cuentan como 1 rollo c/u
             logging.info(
                 f"Pendientes: {len(unicos)} unicos, {len(conflictos)} conflictos "
-                f"en {len(archivos)} archivo(s)"
+                f"en {len(archivos)} archivo(s){' (filtro: desde ' + desde + ')' if desde else ''}"
             )
             self._queue.put(("count_data", (total, len(conflictos), (unicos, conflictos, por_archivo, datos_por_archivo))))
         except Exception as e:
