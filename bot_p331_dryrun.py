@@ -324,17 +324,22 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
     # tiene el stock partido en 2 bines), se desambigua mas abajo por bin_origen.
     esperados_por_lote = {}
     for mov in movimientos:
-        esperados_por_lote.setdefault(mov["lote"].upper(), []).append(mov)
+        # Normalizar igual que hace el grid: lstrip("0") para que "0000017164" == "17164"
+        lk = mov["lote"].strip().upper()
+        lk = lk.lstrip("0") or lk
+        esperados_por_lote.setdefault(lk, []).append(mov)
 
+    # Lotes para la busqueda SAP: numericos con ceros (zfill 10), resto sin cambio
+    lotes_raw = sorted(set(mov["lote"].strip().upper() for mov in movimientos))
     lotes = sorted(esperados_por_lote.keys())
     print(f"[INFO] {len(movimientos)} movimiento(s) / {len(lotes)} lote(s) unico(s) "
           f"a preparar desde {ruta_json}")
 
     session = obtener_sesion_sap()
 
-    print(f"[INFO] Buscando los {len(lotes)} lote(s) en /SCWM/ADPROD (seleccion multiple)...")
+    print(f"[INFO] Buscando los {len(lotes_raw)} lote(s) en /SCWM/ADPROD (seleccion multiple)...")
     t0 = time.perf_counter()
-    grid = buscar_lotes_multiple(session, lotes)
+    grid = buscar_lotes_multiple(session, lotes_raw)
     t_busqueda = time.perf_counter() - t0
 
     columnas = list(grid.ColumnOrder)
