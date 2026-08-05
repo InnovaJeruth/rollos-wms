@@ -68,7 +68,9 @@ COL_DISP        = "AVAIL_QUAN"  # Cantidad disponible (auto-relleno si JSON no t
 
 # Maximo de lotes por busqueda ADPROD — la grilla tiene un limite de display;
 # dividir en batches evita que SAP devuelva menos filas de las buscadas.
-BATCH_SIZE = 25
+# Con 25 lotes algunos de los buscados no aparecen en el grid cuando otros
+# lotes del mismo batch generan multiples filas (stock partido en varios bins).
+BATCH_SIZE = 15
 
 
 # =========================================================================
