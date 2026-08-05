@@ -1,0 +1,198 @@
+{
+  "schema": "ejecutable_v1",
+  "id": "d83bdbad-d7e2-47f8-bef4-ca4dd45f398c",
+  "operario": "jUlio",
+  "fecha": "2026-08-05",
+  "hora_inicio": "12:25:32",
+  "hora_fin": "12:26:35",
+  "total": 17,
+  "movimientos": [
+    {
+      "accion": "regularizacion",
+      "lote": "B5921059",
+      "producto": "1000086942001",
+      "bin_origen": "A001-05B-08-02",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 105600,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "B5921038",
+      "producto": "1000086942001",
+      "bin_origen": "A001-05B-08-02",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 96700,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "A5921057",
+      "producto": "1000086942001",
+      "bin_origen": "A001-05B-08-02",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 110500,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "0000024011",
+      "producto": "1000086943001",
+      "bin_origen": "CORTE",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 70,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "A5921021",
+      "producto": "1000086942001",
+      "bin_origen": "A001-05B-08-02",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 110600,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "B5921051",
+      "producto": "1000086942001",
+      "bin_origen": "A001-05B-08-02",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 113200,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "B5921048",
+      "producto": "1000086942001",
+      "bin_origen": "A001-05B-08-02",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 105,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "0000024351",
+      "producto": "1000086938001",
+      "bin_origen": "CORTE",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 11,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "0000023759",
+      "producto": "1000086936001",
+      "bin_origen": "CORTE",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 118300,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "A5921017",
+      "producto": "1000086942001",
+      "bin_origen": "A001-05B-08-02",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 99,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "0000019974",
+      "producto": "1000015148026",
+      "bin_origen": "CORTE",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 106500,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "0000023916",
+      "producto": "1000086944001",
+      "bin_origen": "CORTE",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 81700,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "0000024333",
+      "producto": "1000099515001",
+      "bin_origen": "CORTE",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 100,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "0000024334",
+      "producto": "1000086939001",
+      "bin_origen": "CORTE",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 100600,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "K2054",
+      "producto": "1000086936001",
+      "bin_origen": "A003-01-07-03",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 81,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "A5921033",
+      "producto": "1000086942001",
+      "bin_origen": "A001-05B-09-02",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 69900,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    },
+    {
+      "accion": "regularizacion",
+      "lote": "A5921055",
+      "producto": "1000086942001",
+      "bin_origen": "A001-05B-08-02",
+      "bin_destino": "A001-06-09-01",
+      "cantidad": 93100,
+      "unidad": "M",
+      "batch_id": "i3jt4h",
+      "timestamp": "2026-08-05T12:26:32"
+    }
+  ]
+}
