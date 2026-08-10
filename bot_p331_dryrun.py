@@ -319,7 +319,7 @@ def imprimir_diagnostico_columnas(grid):
 # Procesamiento de un batch (un ciclo ADPROD completo para un subconjunto
 # de lotes). Separa la logica de un batch de la iteracion en procesar_pendiente.
 # =========================================================================
-def _procesar_un_batch(session, lotes_raw_batch, esperados_por_lote_batch):
+def _procesar_un_batch(session, lotes_raw_batch, esperados_por_lote_batch, pausa=False):
     """
     Ejecuta busqueda + llenado de grilla + creacion de OAs para un subconjunto
     de lotes en una sesion ADPROD.
@@ -456,6 +456,10 @@ def _procesar_un_batch(session, lotes_raw_batch, esperados_por_lote_batch):
     # CREAR Y GRABAR ORDENES DE ALMACEN P331
     # Solo se seleccionan las filas que fueron llenadas correctamente,
     # evitando procesar filas con NLPLA vacio (discrepancias).
+    if pausa and llenados:
+        print(f"\n[PAUSA] Grid llenado con {len(llenados)} fila(s). "
+              f"Verifica en SAP que NLPLA este correcto.")
+        input("  Presiona ENTER para crear las OAs, o Ctrl+C para cancelar... ")
     # =====================================================================
     t_crear = 0.0
     if llenados:
@@ -517,7 +521,7 @@ def _procesar_un_batch(session, lotes_raw_batch, esperados_por_lote_batch):
 # =========================================================================
 # Flujo principal
 # =========================================================================
-def procesar_pendiente(ruta_json, solo_batch_id=None):
+def procesar_pendiente(ruta_json, solo_batch_id=None, pausa=False):
     movimientos = cargar_movimientos(ruta_json, solo_batch_id)
     if not movimientos:
         print(f"[AVISO] No hay movimientos ejecutables en {ruta_json}"
@@ -571,7 +575,7 @@ def procesar_pendiente(ruta_json, solo_batch_id=None):
         esperados_batch = {k: v for k, v in esperados_por_lote.items()
                            if k in batch_norm_keys}
 
-        res = _procesar_un_batch(session, batch_raw, esperados_batch)
+        res = _procesar_un_batch(session, batch_raw, esperados_batch, pausa=pausa)
 
         all_llenados.extend(res["llenados"])
         all_discrepancias.extend(res["discrepancias"])
@@ -623,17 +627,20 @@ def _elegir_json_por_defecto():
 
 def _parse_args():
     p = argparse.ArgumentParser(
-        description="Prepara (dry-run) tareas P331 en /SCWM/ADPROD desde un JSON de pendientes/. "
-                    "No crea tareas en SAP ni cierra la sesion."
+        description="Prepara tareas P331 en /SCWM/ADPROD desde un JSON de pendientes/. "
+                    "No cierra la sesion SAP."
     )
     p.add_argument("-f", "--archivo", default=None,
                    help="Ruta al JSON de pendientes/. Default: el primero alfabeticamente.")
     p.add_argument("--batch", default=None,
                    help="Procesar solo los movimientos de este batch_id.")
+    p.add_argument("--pause", action="store_true",
+                   help="Pausar antes de Crear+Grabar para verificar el grid en SAP. "
+                        "Presiona Enter en la consola para continuar.")
     return p.parse_args()
 
 
 if __name__ == "__main__":
     args = _parse_args()
     ruta = args.archivo or _elegir_json_por_defecto()
-    procesar_pendiente(ruta, solo_batch_id=args.batch)
+    procesar_pendiente(ruta, solo_batch_id=args.batch, pausa=args.pause)
