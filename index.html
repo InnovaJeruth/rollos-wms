@@ -2066,8 +2066,9 @@
 
     // ---- Identificacion ----
     document.getElementById('btn-iniciar').addEventListener('click', async () => {
-      const nom = document.getElementById('inp-operario').value.trim();
-      if (!nom) { flash('Ingresa tu nombre', 'err'); return; }
+      const nomRaw = document.getElementById('inp-operario').value.trim();
+      if (!nomRaw) { flash('Ingresa tu nombre', 'err'); return; }
+      const nom = nomRaw.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
       const invCount = await dbCount(STORES.inventario);
       if (invCount === 0) {
         flash('Sin inventario cargado. Contacta al administrador.', 'err');

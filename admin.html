@@ -679,11 +679,18 @@
   // Dashboard
   // ===========================================================
   async function loadProcesadosHistory(cfg, onProgress) {
-    const files = await WMS.listGitHubFolder(cfg, 'procesados');
+    const folders = ['procesados', 'discrepancias'];
+    const allFiles = [];
+    for (const folder of folders) {
+      try {
+        const files = await WMS.listGitHubFolder(cfg, folder);
+        files.forEach(f => allFiles.push(f));
+      } catch(e) {}
+    }
     const result = [];
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      if (onProgress) try { onProgress(i + 1, files.length, f.name); } catch(e) {}
+    for (let i = 0; i < allFiles.length; i++) {
+      const f = allFiles[i];
+      if (onProgress) try { onProgress(i + 1, allFiles.length, f.name); } catch(e) {}
       try {
         const cached = await WMS.dbGet(WMS.STORES.config, 'proc:' + f.path);
         if (cached && cached.sha === f.sha && cached.data) {
@@ -693,6 +700,9 @@
         const fc = await WMS.getGitHubFile(cfg, f.path);
         if (!fc || !fc.content) continue;
         const data = JSON.parse(fc.content);
+        if (!data.movimientos || !Array.isArray(data.movimientos)) continue;
+        const hasResultado = data.movimientos.some(m => m.resultado_sap);
+        if (!hasResultado) continue;
         await WMS.dbPut(WMS.STORES.config, { key: 'proc:' + f.path, sha: f.sha, data });
         result.push({ ...data, _path: f.path, _sha: f.sha });
       } catch(e) {}
@@ -753,6 +763,43 @@
     if (next) { next.disabled = _anomaliaPage >= pages - 1; next.onclick = () => { _anomaliaPage++; renderMovTable(); }; }
   }
 
+  async function checkPendientesVsInventario(cfg) {
+    const invCount = await WMS.dbCount(WMS.STORES.inventario);
+    if (!invCount) return null;
+    let files;
+    try { files = await WMS.listGitHubFolder(cfg, 'pendientes'); } catch(e) { return null; }
+    if (!files || files.length === 0) return { files: [], totMovs: 0, vigentes: 0, yaEnDestino: 0, noExiste: 0, detalle: [] };
+
+    const result = { files: [], totMovs: 0, vigentes: 0, yaEnDestino: 0, noExiste: 0, detalle: [] };
+    for (const f of files) {
+      try {
+        const fc = await WMS.getGitHubFile(cfg, f.path);
+        if (!fc || !fc.content) continue;
+        const data = JSON.parse(fc.content);
+        const movs = data.movimientos || [];
+        if (!movs.length) continue;
+        let fVigentes = 0, fYaEnDestino = 0, fNoExiste = 0;
+        for (const m of movs) {
+          if (m.huerfano) continue;
+          const lote = WMS.normLote(m.lote);
+          const inv = await WMS.dbGet(WMS.STORES.inventario, lote);
+          if (!inv) { fNoExiste++; continue; }
+          const destino = WMS.normBin(m.bin_destino);
+          const ubActual = WMS.normBin(inv.ubicacion);
+          if (destino && ubActual === destino) { fYaEnDestino++; }
+          else { fVigentes++; }
+        }
+        const total = fVigentes + fYaEnDestino + fNoExiste;
+        result.files.push({ name: f.name, path: f.path, sha: f.sha, operario: data.operario || '?', fecha: data.fecha || '', total, vigentes: fVigentes, yaEnDestino: fYaEnDestino, noExiste: fNoExiste });
+        result.totMovs += total;
+        result.vigentes += fVigentes;
+        result.yaEnDestino += fYaEnDestino;
+        result.noExiste += fNoExiste;
+      } catch(e) {}
+    }
+    return result;
+  }
+
   function fmtSeg(seg) {
     if (!seg || seg < 0) return '-';
     const m = Math.floor(seg / 60);
@@ -797,14 +844,15 @@
     }
 
     // ── Aplicar filtros globales ───────────────────────────────────────────────
+    const _normOp = (s) => (s || '?').trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
     const auditorias = _allAuditorias.filter(a => {
       if (_filterDateFrom && (a.fecha || '') < _filterDateFrom) return false;
       if (_filterDateTo   && (a.fecha || '') > _filterDateTo)   return false;
-      if (_filterOpGlobal && a.operario !== _filterOpGlobal)    return false;
+      if (_filterOpGlobal && _normOp(a.operario) !== _filterOpGlobal) return false;
       return true;
     });
     const procesadosList = _allProcesados || [];
-    const allOps = Array.from(new Set(_allAuditorias.map(a => a.operario).filter(Boolean))).sort();
+    const allOps = Array.from(new Set(_allAuditorias.map(a => _normOp(a.operario)).filter(v => v !== '?'))).sort();
 
     status.textContent = `${auditorias.length}/${_allAuditorias.length} sesion(es) · ${procesadosList.length} arch. SAP`;
 
@@ -860,7 +908,7 @@
       porAccion.traslado_individual += pa.traslado_individual || 0;
       porAccion.traslado_masivo     += pa.traslado_masivo || 0;
       porAccion.regularizacion      += pa.regularizacion || 0;
-      const op = sessionLike.operario || '?';
+      const op = (sessionLike.operario || '?').trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
       if (!porOperario[op]) porOperario[op] = { turnos: 0, movs: 0, seg: 0 };
       porOperario[op].turnos += 1;
       porOperario[op].movs   += movs.length;
@@ -882,7 +930,7 @@
     _dashboardMovs = [];
     auditorias.forEach((a) => {
       acumular(a, a.kpis);
-      const op    = a.operario || '?';
+      const op    = (a.operario || '?').trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
       const fecha = a.fecha    || '';
       (a.movimientos || []).forEach((m) => _dashboardMovs.push({ ...m, _operario: op, _fecha: fecha }));
     });
@@ -1012,6 +1060,39 @@
       }
     }
 
+    // Card: Estado de pendientes SAP (se carga async despues del render)
+    html += `<div id="card-pendientes-check" class="card" style="display:none;"></div>`;
+
+    // KPI: Tasa de exito SAP
+    const totSapOk = Object.values(_procesadosLoteMap).filter(v => v.resultado_sap === 'ok').length;
+    const totSapErr = Object.values(_procesadosLoteMap).filter(v => v.resultado_sap === 'error').length;
+    const totSapTotal = totSapOk + totSapErr;
+    const tasaSap = totSapTotal > 0 ? (totSapOk / totSapTotal * 100) : -1;
+
+    if (totSapTotal > 0) {
+      const sapColor = tasaSap >= 90 ? 'var(--accent)' : (tasaSap >= 50 ? 'var(--warn)' : 'var(--error)');
+      html += `<div class="card" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="text-align:center;padding:8px 0;">
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">Tasa de exito SAP</div>
+          <div style="font-size:36px;font-weight:700;color:${sapColor};line-height:1.1;">${tasaSap.toFixed(1)}%</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">${totSapOk} ok / ${totSapErr} error de ${totSapTotal} procesados</div>
+        </div>
+        <div style="text-align:center;padding:8px 0;">
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">Detalle errores SAP</div>
+          <div style="font-size:11px;color:var(--text-dim);text-align:left;padding:4px 8px;">
+            ${totSapErr > 0 ? (() => {
+              const motivos = {};
+              Object.values(_procesadosLoteMap).filter(v => v.resultado_sap === 'error').forEach(v => {
+                const m = v.motivo_sap || 'desconocido';
+                motivos[m] = (motivos[m] || 0) + 1;
+              });
+              return Object.entries(motivos).map(([k,v]) => `<div style="margin-bottom:2px;"><span style="color:var(--error);font-weight:600;">${v}</span> ${k.replace(/_/g, ' ')}</div>`).join('');
+            })() : '<span style="color:var(--accent);">Sin errores</span>'}
+          </div>
+        </div>
+      </div>`;
+    }
+
     // Graficos: ultimos 7 dias + por modalidad
     html += `<div style="display:grid;gap:12px;grid-template-columns:1fr 1fr;margin-bottom:14px;">
       <div class="card"><div class="label-strong" style="margin-bottom:10px;">Ultimos 7 dias</div>${barChartHtml}</div>
@@ -1112,7 +1193,7 @@
       const malUb = _anomalias.filter((m) =>
         m.tipo === 'mal_ubicado' &&
         m.bin_sap && m.bin_real && m.bin_sap !== m.bin_real &&
-        !['ENTRADA','SALIDA'].includes(String(m.bin_sap).toUpperCase())
+        !['ENTRADA','SALIDA','CORTE','GR-ZONE','GOODSRCPT'].includes(String(m.bin_sap).toUpperCase())
       );
       if (!malUb.length) { flash('Sin mal ubicados procesables en la vista actual.', ''); return; }
       if (!confirm(`Crear pendiente SAP con ${malUb.length} movimiento(s) mal ubicado(s)?\n\nOrigen: ubicacion SAP actual\nDestino: ubicacion fisica encontrada`)) return;
@@ -1160,6 +1241,44 @@
         el.addEventListener('change', () => { _anomaliaPage = 0; renderMovTable(); });
       }
     });
+
+    // Cargar check de pendientes async (no bloquea el render principal)
+    checkPendientesVsInventario(state.config).then(pCheck => {
+      const card = document.getElementById('card-pendientes-check');
+      if (!card || !pCheck) return;
+      if (pCheck.totMovs === 0 && pCheck.files.length === 0) return;
+      card.style.display = '';
+      const btnSt = 'padding:5px 12px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2);cursor:pointer;color:var(--text);';
+      let h = `<div class="label-strong" style="margin-bottom:8px;">Estado de pendientes SAP</div>`;
+      if (pCheck.totMovs === 0) {
+        h += `<div style="font-size:13px;color:var(--text-dim);">Sin pendientes en la nube.</div>`;
+      } else {
+        h += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;text-align:center;">
+          <div><div style="font-size:24px;font-weight:700;color:var(--accent);">${pCheck.vigentes}</div><div style="font-size:11px;color:var(--text-dim);">Vigentes</div></div>
+          <div><div style="font-size:24px;font-weight:700;color:var(--warn);">${pCheck.yaEnDestino}</div><div style="font-size:11px;color:var(--text-dim);">Ya en destino</div></div>
+          <div><div style="font-size:24px;font-weight:700;color:var(--error);">${pCheck.noExiste}</div><div style="font-size:11px;color:var(--text-dim);">No en inventario</div></div>
+        </div>`;
+        h += `<table class="kpi-table" style="font-size:12px;"><tr><th>Archivo</th><th>Operario</th><th>Fecha</th><th class="num">Vigentes</th><th class="num">Ya dest.</th><th class="num">No existe</th></tr>`;
+        pCheck.files.forEach(f => {
+          h += `<tr>
+            <td style="font-family:monospace;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${f.name}">${f.name}</td>
+            <td>${_normOp(f.operario)}</td>
+            <td>${WMS.fmtFecha(f.fecha) || f.fecha}</td>
+            <td class="num" style="color:var(--accent);">${f.vigentes}</td>
+            <td class="num" style="color:var(--warn);">${f.yaEnDestino}</td>
+            <td class="num" style="color:var(--error);">${f.noExiste}</td>
+          </tr>`;
+        });
+        h += `</table>`;
+        if (pCheck.yaEnDestino > 0 || pCheck.noExiste > 0) {
+          h += `<div style="margin-top:10px;font-size:12px;color:var(--text-dim);padding:8px;background:var(--surface-2);border-radius:6px;">
+            <strong style="color:var(--warn);">&#9888; ${pCheck.yaEnDestino + pCheck.noExiste} movimiento(s) obsoleto(s)</strong> — ya estan en destino o el lote desaparecio del inventario.
+            Estos pendientes no necesitan ejecutarse en SAP. Considera limpiarlos antes de correr el bot.
+          </div>`;
+        }
+      }
+      card.innerHTML = h;
+    }).catch(() => {});
   }
 
   async function clearDashboardCache() {

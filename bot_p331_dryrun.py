@@ -614,8 +614,71 @@ def procesar_pendiente(ruta_json, solo_batch_id=None, pausa=False):
             print(f"    - Lote {d['lote']}: {d['motivo']}{extra}")
 
     print("\nLa sesion de SAP queda ABIERTA para revision.")
+
+    # Escribir resultados a discrepancias/ para que el dashboard los vea
+    _guardar_resultados(ruta_json, movimientos, all_llenados, all_discrepancias, all_ya_en_destino)
+
     return {"llenados": all_llenados, "discrepancias": all_discrepancias,
             "ya_en_destino": all_ya_en_destino}
+
+
+def _guardar_resultados(ruta_json, movimientos_orig, llenados, discrepancias, ya_en_destino):
+    """Escribe un JSON de resultados en discrepancias/ con resultado_sap por movimiento."""
+    with open(ruta_json, "r", encoding="utf-8") as f:
+        data_orig = json.load(f)
+
+    llenados_set = {m["lote"].strip().upper() for m in llenados}
+    ya_dest_set = {m["lote"].strip().upper() for m in ya_en_destino}
+    discr_map = {}
+    for d in discrepancias:
+        lk = d.get("lote", "").strip().upper()
+        if lk:
+            discr_map[lk] = d.get("motivo", "error_desconocido")
+
+    movs_con_resultado = []
+    for m in data_orig.get("movimientos", []):
+        lote_norm = m.get("lote", "").strip().upper().lstrip("0") or m.get("lote", "").strip().upper()
+        resultado = dict(m)
+        if lote_norm in llenados_set:
+            resultado["resultado_sap"] = "ok"
+            resultado["motivo_sap"] = ""
+        elif lote_norm in ya_dest_set:
+            resultado["resultado_sap"] = "ya_en_destino"
+            resultado["motivo_sap"] = "lote_ya_en_bin_destino"
+        elif lote_norm in discr_map:
+            resultado["resultado_sap"] = "error"
+            resultado["motivo_sap"] = discr_map[lote_norm]
+        else:
+            resultado["resultado_sap"] = "no_procesado"
+            resultado["motivo_sap"] = "no_incluido_en_batch"
+        movs_con_resultado.append(resultado)
+
+    resultado_json = {
+        "schema": data_orig.get("schema", "ejecutable_v1"),
+        "id": data_orig.get("id", ""),
+        "operario": data_orig.get("operario", ""),
+        "fecha": data_orig.get("fecha", ""),
+        "hora_inicio": data_orig.get("hora_inicio", ""),
+        "hora_fin": data_orig.get("hora_fin", ""),
+        "total": len(movs_con_resultado),
+        "movimientos": movs_con_resultado,
+    }
+
+    nombre_base = os.path.basename(ruta_json)
+    ruta_resultado = os.path.join("discrepancias", nombre_base)
+    os.makedirs("discrepancias", exist_ok=True)
+    with open(ruta_resultado, "w", encoding="utf-8") as f:
+        json.dump(resultado_json, f, ensure_ascii=False)
+    print(f"\n[INFO] Resultados guardados en {ruta_resultado}")
+
+    # Mover el pendiente original a procesados/
+    ruta_procesado = os.path.join("procesados", nombre_base)
+    os.makedirs("procesados", exist_ok=True)
+    try:
+        os.rename(ruta_json, ruta_procesado)
+        print(f"[INFO] Pendiente movido a {ruta_procesado}")
+    except OSError as e:
+        print(f"[AVISO] No se pudo mover pendiente: {e}")
 
 
 def _elegir_json_por_defecto():
