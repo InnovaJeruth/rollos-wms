@@ -1,0 +1,148 @@
+{
+  "schema": "auditoria_v1",
+  "id": "ebd31ed0-0879-4829-b873-a21e42835611",
+  "operario": "alex",
+  "fecha": "2026-09-21",
+  "hora_inicio": "11:32:00",
+  "hora_fin": "11:39:19",
+  "dispositivo": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36",
+  "kpis": {
+    "duracion_seg": 439,
+    "duracion_min": 7,
+    "total_movimientos": 5,
+    "total_discrepancias": 5,
+    "total_huerfanos": 0,
+    "total_ejecutables": 5,
+    "por_accion": {
+      "traslado_individual": 0,
+      "traslado_masivo": 0,
+      "regularizacion": 5
+    },
+    "seg_por_movimiento": 88
+  },
+  "huerfanos": [],
+  "discrepancias": [
+    {
+      "lote": "A260606710",
+      "bin_sap": "A001-06-09-02",
+      "bin_real": "A001-06-08-02",
+      "bin_destino": "A001-06-08-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-09-21T11:39:07",
+      "batch_id": "0akehg"
+    },
+    {
+      "lote": "A260606705",
+      "bin_sap": "A001-06-09-02",
+      "bin_real": "A001-06-08-02",
+      "bin_destino": "A001-06-08-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-09-21T11:39:07",
+      "batch_id": "0akehg"
+    },
+    {
+      "lote": "A260800506",
+      "bin_sap": "A001-06-09-02",
+      "bin_real": "A001-06-08-02",
+      "bin_destino": "A001-06-08-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-09-21T11:39:07",
+      "batch_id": "0akehg"
+    },
+    {
+      "lote": "A260800509",
+      "bin_sap": "A001-06-09-02",
+      "bin_real": "A001-06-08-02",
+      "bin_destino": "A001-06-08-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-09-21T11:39:07",
+      "batch_id": "0akehg"
+    },
+    {
+      "lote": "A260800513",
+      "bin_sap": "A001-06-09-02",
+      "bin_real": "A001-06-08-02",
+      "bin_destino": "A001-06-08-02",
+      "accion": "regularizacion",
+      "timestamp": "2026-09-21T11:39:07",
+      "batch_id": "0akehg"
+    }
+  ],
+  "movimientos": [
+    {
+      "lote": "A260606710",
+      "producto": "2000030811001",
+      "descripcion": "TA CAM POLYGOLD AP7036, 1 CELESTE",
+      "bin_sap": "A001-06-09-02",
+      "bin_real": "A001-06-08-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-08-02",
+      "cantidad": 62,
+      "unidad": "M",
+      "timestamp": "2026-09-21T11:39:07",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "0akehg"
+    },
+    {
+      "lote": "A260606705",
+      "producto": "2000030811001",
+      "descripcion": "TA CAM POLYGOLD AP7036, 1 CELESTE",
+      "bin_sap": "A001-06-09-02",
+      "bin_real": "A001-06-08-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-08-02",
+      "cantidad": 46,
+      "unidad": "M",
+      "timestamp": "2026-09-21T11:39:07",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "0akehg"
+    },
+    {
+      "lote": "A260800506",
+      "producto": "2000006731033",
+      "descripcion": "TELA CAM AP2507, LILA 07132014",
+      "bin_sap": "A001-06-09-02",
+      "bin_real": "A001-06-08-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-08-02",
+      "cantidad": 46,
+      "unidad": "M",
+      "timestamp": "2026-09-21T11:39:07",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "0akehg"
+    },
+    {
+      "lote": "A260800509",
+      "producto": "2000006731033",
+      "descripcion": "TELA CAM AP2507, LILA 07132014",
+      "bin_sap": "A001-06-09-02",
+      "bin_real": "A001-06-08-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-08-02",
+      "cantidad": 46,
+      "unidad": "M",
+      "timestamp": "2026-09-21T11:39:07",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "0akehg"
+    },
+    {
+      "lote": "A260800513",
+      "producto": "2000006731033",
+      "descripcion": "TELA CAM AP2507, LILA 07132014",
+      "bin_sap": "A001-06-09-02",
+      "bin_real": "A001-06-08-02",
+      "discrepancia": true,
+      "bin_destino": "A001-06-08-02",
+      "cantidad": 58,
+      "unidad": "M",
+      "timestamp": "2026-09-21T11:39:07",
+      "accion": "regularizacion",
+      "huerfano": false,
+      "batch_id": "0akehg"
+    }
+  ]
+}
